@@ -190,6 +190,7 @@ try {
         saved_annotation: saved.annotations[0].id,
         predictions_unchanged: true,
         saved_ranges_verified: true,
+        saved_ranges: savedRanges,
         held_reload_media_requests: heldMediaRequests,
         unloaded_video_states: unloadedVideoStates,
         trace,
