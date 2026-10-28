@@ -111,6 +111,8 @@ try {
   await start.fill("3");
   await start.press("Enter");
   await expect(start).toHaveValue("3");
+  await page.getByPlaceholder("Object, if observable").fill(object);
+  await page.getByPlaceholder("Object, if observable").press("Enter");
   await page
     .getByPlaceholder("Evidence, corrections, and uncertainty")
     .fill(
@@ -159,6 +161,7 @@ try {
     .locator("video")
     .evaluateAll((elements) => elements.map((element) => element.readyState));
   expect([[], [0]]).toContainEqual(unloadedVideoStates);
+  holdReloadMedia = false;
   releaseReloadMedia();
   await waitForVideo();
   await tab.click();
@@ -181,6 +184,45 @@ try {
     path: "artifacts/semantic-droid-native.png",
     fullPage: true,
   });
+  const objectField = page.locator('input[name^="object_text:"]');
+  await objectField.fill("");
+  await objectField.press("Enter");
+  await page
+    .getByRole("button", { name: "submit", exact: true })
+    .filter({ hasText: "Update" })
+    .click();
+  const objectResult = (task) =>
+    task.annotations[0].result.find(
+      (r) => r.id === "segment-0" && r.from_name === "object_text",
+    );
+  await expect
+    .poll(async () =>
+      objectResult(await (await page.request.get(taskURL)).json()),
+    )
+    .toMatchObject({ value: { text: [""] } });
+  const cleared = await (await page.request.get(taskURL)).json();
+  expect(predictionContent(cleared)).toEqual(predictionContent(initial));
+  expect(cleared.annotations).toHaveLength(1);
+  const expectedCleared = structuredClone(saved.annotations[0].result);
+  expectedCleared.find(
+    (r) => r.id === "segment-0" && r.from_name === "object_text",
+  ).value.text = [""];
+  expect(cleared.annotations[0].result).toEqual(expectedCleared);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForVideo();
+  await tab.click();
+  await expect(tab).toHaveClass(/lsf-annotation-button_selected/);
+  await expect(regions).toHaveCount(Number(process.env.LS_FIXTURE_SEGMENTS));
+  await regions.first().click();
+  await expect(endField).toHaveAttribute("max", process.env.LS_FIXTURE_FRAMES);
+  await expect(objectField).toHaveValue("");
+  await expect(page.locator('textarea[name^="subtask_text:"]')).toHaveValue(
+    corrected,
+  );
+  await expect(endField).toHaveValue("2");
+  const clearedReload = await (await page.request.get(taskURL)).json();
+  expect(clearedReload.annotations[0].result).toEqual(expectedCleared);
+  expect(predictionContent(clearedReload)).toEqual(predictionContent(initial));
   expect(trace.errors).toEqual([]);
   await writeFile(
     "artifacts/semantic-native-browser.json",
@@ -191,6 +233,9 @@ try {
         predictions_unchanged: true,
         saved_ranges_verified: true,
         saved_ranges: savedRanges,
+        populated_object_saved_and_reloaded: true,
+        cleared_object_saved_and_reloaded: true,
+        cleared_object_result: objectResult(clearedReload),
         held_reload_media_requests: heldMediaRequests,
         unloaded_video_states: unloadedVideoStates,
         trace,

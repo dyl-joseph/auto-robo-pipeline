@@ -202,6 +202,92 @@ def test_text_only_edits_invalidate_approval_without_mutating_predictions(semant
     assert s.task["predictions"][0]["result"] == s.bundle["task"]["predictions"][0]["result"]
 
 
+@pytest.mark.parametrize("cleared", [None, "", "  "])
+def test_cleared_object_requires_fresh_approval_and_exports_as_absent(semantic, tmp_path, cleared):
+    s = semantic
+    register(s)
+    before = s.prediction_path.read_bytes()
+    refresh(s)
+    accept(s)
+    s.bridge.export(selection(s), tmp_path / "populated")
+    original = validate_export(tmp_path / "populated")[0]
+    text = next(r for r in s.annotation["result"] if r["from_name"] == "object_text")
+    if cleared is None:
+        s.annotation["result"].remove(text)
+    else:
+        text["value"]["text"] = [cleared]
+    s.annotation["updated_at"] = "2026-01-01T00:00:01Z"
+    with pytest.raises(Conflict, match="changed"):
+        s.bridge.export(selection(s), tmp_path / "stale")
+    changed = refresh(s, 2)
+    assert changed["native"]["semantic_review"]["segments"][0]["object_text"] is None
+    assert changed["native"]["semantic_review"]["complete"]
+    accept(s, 3)
+    s.bridge.export(selection(s, 4), tmp_path / "cleared")
+    exported = validate_export(tmp_path / "cleared")[0]
+    assert exported["annotation"]["native"]["semantic_review"]["segments"][0]["object_text"] is None
+    assert validate_export(tmp_path / "populated")[0] == original
+    assert s.prediction_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("problem", ["orphan", "duplicate", "range", "multiple", "nonstring"])
+def test_empty_object_still_requires_valid_region_binding(semantic, problem):
+    s = semantic
+    results = deepcopy(s.annotation["result"])
+    text = next(r for r in results if r["from_name"] == "object_text")
+    text["value"]["text"] = [""]
+    if problem == "orphan":
+        text["id"] = "missing"
+    elif problem == "duplicate":
+        results.append(deepcopy(text))
+    elif problem == "range":
+        text["value"]["ranges"] = [{"start": 2, "end": 10}]
+    elif problem == "multiple":
+        text["value"]["text"] = ["", ""]
+    elif problem == "nonstring":
+        text["value"]["text"] = [None]
+    with pytest.raises(ValueError):
+        decoded_review(results, s.spec, s.bundle["proxy"])
+
+
+def test_failed_prediction_can_receive_manual_segments_without_changing_failure(semantic, tmp_path):
+    s = semantic
+    predictions = Predictions.model_validate_json(s.prediction_path.read_text())
+    predictions.episodes[0].segments = []
+    predictions.episodes[0].error = "Generated inference failure"
+    atomic_json(s.prediction_path, predictions.model_dump())
+    failed_bytes = s.prediction_path.read_bytes()
+    s.bundle = prepare(
+        s.store, s.plan_path, s.prediction_path, s.episode["id"], tmp_path / "failed-review"
+    )
+    assert s.bundle["task"]["predictions"] == []
+    assert (
+        "prediction failed: Generated inference failure" in s.bundle["task"]["data"]["provenance"]
+    )
+    s.task["data"] = s.bundle["task"]["data"]
+    s.task["predictions"] = []
+    manual_results = s.annotation["result"]
+    s.annotation["result"] = []
+    register(s)
+    empty = refresh(s)
+    assert not empty["native"]["semantic_review"]["complete"]
+    with pytest.raises(ValueError, match="complete semantic coverage"):
+        accept(s)
+    s.annotation["result"] = manual_results
+    s.annotation["updated_at"] = "2026-01-01T00:00:01Z"
+    completed = refresh(s, 1)
+    assert completed["native"]["semantic_review"]["complete"]
+    assert completed["condition"] == "manual"
+    assert completed["native"]["machine_predictions"] == []
+    accept(s, 2)
+    s.bridge.export(selection(s, 3), tmp_path / "manual-recovery")
+    record = validate_export(tmp_path / "manual-recovery")[0]
+    assert record["annotation"]["native"]["semantic_review"]["kind"] == "model_assisted_review"
+    assert s.prediction_path.read_bytes() == failed_bytes
+    _, failed, _ = bound_prediction(s.store, s.bundle["trusted_origin"])
+    assert failed.segments == [] and failed.error == "Generated inference failure"
+
+
 @pytest.mark.parametrize(
     "problem",
     [

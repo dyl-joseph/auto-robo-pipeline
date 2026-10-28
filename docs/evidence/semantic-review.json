@@ -6,6 +6,7 @@
     "automatic_approvals_in_product": 0,
     "boundary_edit_preserves_coverage": true,
     "candidate_segments": 9,
+    "cleared_object_saved_reloaded_and_exported_as_absent": true,
     "corrected_segments": 9,
     "episodes": 1,
     "evidence_kind": "real_droid_automated_semantic_integration",
@@ -22,8 +23,9 @@
     "text_only_edit_invalidates_approval": true
   },
   "lerobot": {
-    "accepted_version": "a067e1520f5866e30f89540d",
+    "accepted_version": "077c23dc69e1c9a2b2bc4bb3",
     "adapter_version": 2,
+    "cleared_object_absent_with_neighbor_preserved": true,
     "dataloader_strings_verified": true,
     "episode_task_unchanged": true,
     "episodes": 1,
@@ -49,10 +51,10 @@
     "source_timing": "inferred_nominal_15_hz_no_capture_timestamps",
     "split": "test",
     "text_and_object_match_corrected_source_frames": true,
-    "training_version": "05ccd318d963931b4a2de2a0"
+    "training_version": "4596ed0d8111cca2aeb7d0dd"
   },
   "local_checks": {
-    "core_python_passed": 196,
+    "core_python_passed": 205,
     "lerobot_roundtrip_passed": 5,
     "playwright_passed": 7
   },
@@ -61,11 +63,30 @@
   "screenshot": "semantic-droid-native.png",
   "browser_readiness_regression": {
     "cpu_throttling_rate": 6,
-    "held_reload_media_requests": 3,
+    "held_reload_media_requests": 2,
     "unloaded_video_states": [],
     "saved_ranges_verified_before_and_after_reload": true,
     "full_frame_limit_verified_before_controls": true,
     "application_errors": [],
     "original_ci_failure": "https://github.com/dyl-joseph/auto-robo-pipeline/actions/runs/40778453817/job/123136806839"
+  },
+  "optional_object_regression": {
+    "native_serialization_after_clear": {
+      "text": [
+        ""
+      ]
+    },
+    "blank_and_deleted_values_export_as_null": true,
+    "clearing_requires_fresh_approval": true,
+    "historical_export_and_predictions_unchanged": true,
+    "neighboring_object_text_preserved": true,
+    "invalid_region_links_still_rejected": true
+  },
+  "failed_prediction_recovery": {
+    "generated_bridge_contract_verified": true,
+    "empty_review_cannot_be_accepted": true,
+    "complete_manual_annotation_can_be_accepted": true,
+    "failed_prediction_record_unchanged": true,
+    "native_creation_from_scratch_browser_verified": false
   }
 }
