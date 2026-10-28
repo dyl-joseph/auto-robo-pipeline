@@ -9,6 +9,8 @@ The implemented slices and their evidence are listed below. The next approved mi
 | Import and source integrity | Immutable snapshots, hashes, timestamp validation and retry tests |
 | Native review and approval | Label Studio correction, persisted reload, explicit approval and fresh export checks |
 | Real DROID import | One pinned shard, 119 decoded steps, three cameras inspected and one selected for review |
+| Local RLDS intake | Generated multi-episode/shard tests, hash-checked resume, partial-source reports and the unchanged real pilot |
+| Semantic evaluation contract | Source-frame segments, separate predictions/references, split and independence checks, and generated evaluator tests; no real accuracy result yet |
 | LeRobot conversion | Every loaded DROID state/action vector compared with the source; official loader and DataLoader tested |
 | MLX compatibility | PI05 action-expert loss, gradients, updates and resume compared with small official models on MPS and MLX Metal |
 | Full PI05 inference | Pinned pretrained checkpoint, generated raw observations, official preprocessing and postprocessing, and complete action chunks verified on the M5 Pro |
