@@ -22,6 +22,12 @@ async function review() {
   );
   page = await context.newPage();
   page.setDefaultTimeout(7000);
+  if (process.env.LS_CPU_RATE) {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", {
+      rate: Number(process.env.LS_CPU_RATE),
+    });
+  }
   page.on("response", async (response) => {
     const request = response.request();
     const url = new URL(request.url());
@@ -65,14 +71,92 @@ async function review() {
       });
   });
   page.on("pageerror", (error) => errors.push(error.message));
+  const loadingContract = process.env.LS_TASK_LOADING_CONTRACT === "1";
+  let detailsDelivered = 0;
+  let orderedListDelivered = false;
+  let releaseList;
+  const detailsReady = new Promise((resolve) => {
+    releaseList = resolve;
+  });
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.hostname !== "127.0.0.1") return route.abort();
+    // Reorder real responses only. No response payload or application state is modified.
+    if (loadingContract && !orderedListDelivered) {
+      if (/^\/api\/tasks\/\d+$/.test(url.pathname) && detailsDelivered < 2) {
+        const response = await route.fetch();
+        await route.fulfill({ response });
+        detailsDelivered += 1;
+        if (detailsDelivered === 2) releaseList();
+        return;
+      }
+      if (url.pathname === "/api/tasks" && url.searchParams.has("page")) {
+        const response = await route.fetch();
+        let timer;
+        try {
+          await Promise.race([
+            detailsReady,
+            new Promise((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error("task detail delivery timeout")),
+                7000,
+              );
+            }),
+          ]);
+          await route.fulfill({ response });
+          orderedListDelivered = true;
+        } finally {
+          clearTimeout(timer);
+        }
+        return;
+      }
+    }
     return route.continue();
   });
-  await page.goto(
-    `http://127.0.0.1:8134/projects/${process.env.LS_FIXTURE_PROJECT}/data?task=${process.env.LS_FIXTURE_TASK}`,
-  );
+  const projectURL = `http://127.0.0.1:8134/projects/${process.env.LS_FIXTURE_PROJECT}/data`;
+  if (loadingContract) {
+    await page.goto(`${projectURL}?task=${process.env.LS_FIXTURE_TASK}`);
+    await expect
+      .poll(() => page.locator("video").evaluate((v) => v.readyState), {
+        timeout: 20000,
+      })
+      .toBe(4);
+    const cold = await page.evaluate(() => ({
+      task_predictions: window.DM.taskStore.selected.predictions.length,
+      editor_predictions: window.Htx.annotationStore.predictions.length,
+      human_annotations: window.Htx.annotationStore.annotations.length,
+    }));
+    expect(cold).toEqual({
+      task_predictions: 0,
+      editor_predictions: 0,
+      human_annotations: 1,
+    });
+    await writeFile(
+      "artifacts/labelstudio-task-loading.json",
+      JSON.stringify({
+        upstream_version: "1.23.2",
+        response_order: "two_task_details_then_list",
+        cold,
+      }),
+    );
+    console.log(
+      "Reproduced upstream cold-task loading race",
+      JSON.stringify(cold),
+    );
+    await page
+      .getByRole("link", { name: "Robot episode review", exact: true })
+      .click();
+  } else {
+    await page.goto(projectURL);
+  }
+  const taskRow = page.getByTestId("table-row").filter({
+    has: page.getByRole("checkbox", {
+      name: `Select Task ${process.env.LS_FIXTURE_TASK}`,
+      exact: true,
+    }),
+  });
+  await taskRow.waitFor({ state: "visible", timeout: 20000 });
+  await taskRow.getByText("Transfer cube", { exact: true }).click();
   const video = page.locator("video");
   await video.waitFor({ state: "attached" });
   await expect
@@ -107,6 +191,11 @@ async function review() {
               ),
           ),
         ),
+        taskStore: {
+          loading: window.DM.taskStore.loading,
+          selectedId: window.DM.taskStore.selectedId,
+          predictions: window.DM.taskStore.selected?.predictions?.length,
+        },
         predictionCount: window.Htx.annotationStore.predictions.length,
         annotationCount: window.Htx.annotationStore.annotations.length,
         annotationTabs: Array.from(
@@ -245,6 +334,9 @@ async function review() {
     "artifacts/labelstudio-browser.json",
     JSON.stringify({
       evidence_kind: "synthetic_fixture",
+      entry_path: "native_task_table",
+      cold_task_loading_control: loadingContract,
+      cpu_throttle_rate: Number(process.env.LS_CPU_RATE || 1),
       native_video_playback: true,
       sensor_seek_sync: true,
       native_annotation_update: true,

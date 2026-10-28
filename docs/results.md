@@ -7,6 +7,7 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 | Python behavior tests | 47 passed, including twelve native bridge cases and optional pretrained model smoke with downloaded pinned weights |
 | Native Label Studio 1.23.2 + SDK 2.1.2 | Actual project/storage/task/prediction import, annotation correction and native JSON export passed in a disposable authenticated application |
 | Native browser review | H.264 playback, two synchronized sensor plots, sensor-to-video seeking, temporal end-frame edit, submit, persisted API reread and reload passed without script errors |
+| Native task loading regression | Controlled detail-before-list responses reproduce the pinned cold-link bug; native table entry recovers prediction review, correction, submit, reload and SDK export under 6× browser CPU throttling |
 | Native sync regression | Official time-formatted CSV, numeric JSON and resized themed view seek correctly; two pinned upstream Collapse initialization failures reproduced as controls |
 | Native temporal export | Source frames 5/6 deliberately removed; native frames 1–6 export to generated review interval [0, 0.5), with end-boundary measured-source bracket [0.333333…, 0.583333…) and width 0.25 s |
 | Legacy desktop Chromium | Import fixture → playback/seek → candidates → correction → save → stale-tab conflict → accept → download export → edit/reopen passed |

@@ -8,7 +8,7 @@ The labeling XML is [review.xml](../integrations/labelstudio/review.xml). Its cr
 
 `python -m robo serve` runs native Label Studio on 127.0.0.1:8000. Its data lives under the configured robotics store's `labelstudio/` directory. It does not automatically create users or API credentials. `prepare-labelstudio EPISODE_ID` creates a native task import JSON, labeling XML, explicit frame mapping and provenance sidecar.
 
-The first-slice manual path uses the normal Label Studio project setup/import UI and a project-scoped Local Files storage rooted at `STORE/review_proxy`. The application document root is the selected store, while the project storage authorizes only the review proxy subdirectory. Do not authorize the full filesystem or expose the development server publicly.
+The first-slice manual path uses the normal Label Studio project setup/import UI and a project-scoped Local Files storage rooted at `STORE/review_proxy`. Open imported tasks by clicking their row in the native Data Manager table. The application document root is the selected store, while the project storage authorizes only the review proxy subdirectory. Do not authorize the full filesystem or expose the development server publicly.
 
 For automation, `publish_bundle()` accepts an already authorized official SDK client. It creates a project, authorizes its proxy storage and imports the task/predictions, returning a trusted source/task/proxy binding. The bridge does not create an API credential for that client. `annotation_snapshot()` validates native SDK JSON exports against that binding and emits draft snapshots. Promotion of these snapshots to the existing accepted-export workflow remains a subsequent integration gate.
 
@@ -41,9 +41,25 @@ Label Studio auto-creates a user token, which the test immediately removes. Its 
 
 Telemetry, Sentry and automatic update checks are disabled. The browser blocks all non-local requests. The supported feature-flag setting `fflag_fix_front_dev_3391_interactive_view_all=false` disables Compare All: in this pinned version, that mode leaves a per-annotation synchronization manager uninitialized during mounting. This is a bounded runtime workaround, not a patch to upstream code. Single-task annotation and sensor synchronization remain enabled.
 
-The browser selects the prediction and uses native **Create an annotation**. Prediction results explicitly carry `interactive_mode=false`, which the pinned frontend requires when copying imported results. It then edits, submits, checks persisted API data, reloads and independently exports via the SDK. Native exports represent predictions as IDs; the harness retrieves those IDs through the SDK and checks that the original machine results and run identity are unchanged.
+The browser opens the native task table, clicks the imported task, selects the prediction and uses native **Create an annotation**. Prediction results explicitly carry `interactive_mode=false`, which the pinned frontend requires when copying imported results. It then edits, submits, checks persisted API data, reloads and independently exports via the SDK. Native exports represent predictions as IDs; the harness retrieves those IDs through the SDK and checks that the original machine results and run identity are unchanged.
 
 All browser child processes have a 90-second ceiling, with shorter per-action timeouts. Failure captures include a screenshot, accessible UI snapshot and request status trace without session credentials. These fixtures exercise actual application routes and browser actions, never internal-state setters.
+
+## Native task loading limitation
+
+Cold navigation directly to `data?task=ID` is unreliable in pinned Label Studio 1.23.2. CI and a local run with 6× browser CPU throttling received the full prediction in the task response but rendered zero predictions and one empty human annotation. The project model version matched the imported prediction and `show_collab_predictions` was true; changing those settings or remote flags was not the remedy.
+
+The controlled regression delivers both real task-detail responses before the real task-list response. List rows omit predictions, and the native Data Manager replaces the detailed task entry with that metadata-only row. Read-only observations confirm the task store loses its prediction; if replacement occurs before editor initialization finishes, the editor also has zero predictions. The bundled upstream `DataStore.setList` replacement and `LSFWrapper.setLSFTask` paint wait explain this ordering. No upstream code or setters are patched. The supported workflow for this pilot is to open the Data Manager table first and click a task row. The complete prediction → correction → submit → reload → SDK export check passes through that route under the same local slowdown. Ordinary page reload after saving remains part of the test. Cold direct links remain an upstream limitation, not a fixed capability of this bridge.
+
+To exercise slower browser initialization without altering application state:
+
+```bash
+LS_CPU_RATE=6 uv run --locked python -m scripts.labelstudio_smoke --browser
+# Reproduce the pinned cold-open bug, then recover through native navigation:
+LS_TASK_LOADING_CONTRACT=1 LS_CPU_RATE=6 uv run --locked python -m scripts.labelstudio_smoke --browser
+```
+
+CI runs the second command. It asserts the pinned upstream failure as a negative control, clicks the native project breadcrumb and task row, and then requires every review/persistence assertion to pass. Revisit the negative control when upgrading Label Studio. Request delays reorder unmodified server responses; they do not manufacture labels. This uses Chromium's CPU throttling test API, not a performance benchmark. Read-only diagnostics record the delivered prediction IDs/counts, project settings and native store counts. The workflow still requires actual native controls and persisted backend results; it does not add predictions through internal state or skip missing suggestions.
 
 ## Native synchronization regression
 

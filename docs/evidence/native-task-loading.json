@@ -1,0 +1,37 @@
+{
+  "evidence_kind": "synthetic_fixture",
+  "loading_control": {
+    "upstream_version": "1.23.2",
+    "response_order": "two_task_details_then_list",
+    "cold": {
+      "task_predictions": 0,
+      "editor_predictions": 0,
+      "human_annotations": 1
+    }
+  },
+  "recovered_review": {
+    "evidence_kind": "synthetic_fixture",
+    "entry_path": "native_task_table",
+    "cpu_throttle_rate": 6,
+    "native_video_playback": true,
+    "sensor_seek_sync": true,
+    "native_annotation_update": true,
+    "native_temporal_edit": {
+      "start": 1,
+      "end": 6
+    },
+    "mutation_trace": [
+      {
+        "path": "/api/dm/views",
+        "method": "POST",
+        "status": 201
+      },
+      {
+        "path": "/api/tasks/2/annotations",
+        "method": "POST",
+        "status": 201
+      }
+    ],
+    "script_errors": []
+  }
+}
