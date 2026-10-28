@@ -10,7 +10,7 @@
   "baseline_segments": 9,
   "failed_predictions": 0,
   "native_semantic_bundle_prepared": true,
-  "core_tests_passed": 201,
+  "core_tests_passed": 210,
   "missing_qwen_assets_preflight_rejected": true,
   "pretrained_weights_downloaded": false,
   "full_pretrained_qwen_run": false,
