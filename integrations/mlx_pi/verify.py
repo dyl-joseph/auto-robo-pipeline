@@ -3,6 +3,7 @@
 import argparse
 import dataclasses
 import json
+import os
 import platform
 import tempfile
 import time
@@ -15,13 +16,14 @@ import numpy as np
 from mlx.utils import tree_flatten
 
 from .bridge import as_mlx, encode_prefix, expert_from_torch
-from .reference import small_inputs, small_reference
+from .reference import configure_runtime, small_inputs, small_reference
 from .training import Trainer
 
 
-def verify(output):
+def verify(output, device="gpu"):
+    torch_device = configure_runtime(device)
     start = time.perf_counter()
-    core, batch = small_reference(), small_inputs()
+    core, batch = small_reference(device=torch_device), small_inputs(device=torch_device)
     expert = expert_from_torch(core)
     prefix = encode_prefix(
         core, batch["images"], batch["img_masks"], batch["tokens"], batch["masks"]
@@ -38,20 +40,24 @@ def verify(output):
             if name.startswith(("action_", "time_"))
             else ("paligemma_with_expert.gemma_expert.model." + name)
         )
-        expected = parameters[reference_name].grad.numpy()
+        expected = parameters[reference_name].grad.cpu().numpy()
         np.testing.assert_allclose(np.array(grad), expected, atol=4e-5, rtol=2e-3)
         gradient_error = max(gradient_error, float(np.max(np.abs(np.array(grad) - expected))))
     loss_error = abs(float(loss) - reference_loss.item())
     assert loss_error < 3e-5
     sampled = expert.sample(noise, prefix, steps=3)
-    expected_sample = core.sample_actions(
-        batch["images"],
-        batch["img_masks"],
-        batch["tokens"],
-        batch["masks"],
-        noise=batch["noise"],
-        num_steps=3,
-    ).numpy()
+    expected_sample = (
+        core.sample_actions(
+            batch["images"],
+            batch["img_masks"],
+            batch["tokens"],
+            batch["masks"],
+            noise=batch["noise"],
+            num_steps=3,
+        )
+        .cpu()
+        .numpy()
+    )
     np.testing.assert_allclose(np.array(sampled), expected_sample, atol=5e-5, rtol=5e-5)
     trainer = Trainer(expert, seed=42)
     contract = {"reference": "random-small-official-pi05", "pretrained": False}
@@ -77,6 +83,9 @@ def verify(output):
         "architecture": platform.machine(),
         "mlx_device": str(mx.default_device()),
         "metal_available": mx.metal.is_available(),
+        "torch_device": str(next(core.parameters()).device),
+        "mps_cpu_fallback": os.environ.get("PYTORCH_ENABLE_MPS_FALLBACK", "0") != "0",
+        "mlx_enable_tf32": os.environ.get("MLX_ENABLE_TF32", "1") != "0",
         "config": dataclasses.asdict(expert.config),
         "trainable_parameters": sum(x.size for _, x in tree_flatten(expert.parameters())),
         "gradient_tensors_compared": len(tree_flatten(grads)),
@@ -98,9 +107,6 @@ def verify(output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("artifacts/mlx-pi05.json"))
-    parser.add_argument("--device", choices=("cpu", "gpu"), default="cpu")
+    parser.add_argument("--device", choices=("cpu", "gpu"), default="gpu")
     args = parser.parse_args()
-    if args.device == "gpu" and not mx.metal.is_available():
-        parser.error("The Metal verification command requires an Apple GPU")
-    mx.set_default_device(mx.cpu if args.device == "cpu" else mx.gpu)
-    print(json.dumps(verify(args.output), indent=2))
+    print(json.dumps(verify(args.output, args.device), indent=2))

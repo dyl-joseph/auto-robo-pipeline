@@ -1,7 +1,10 @@
 """Small configurations of the installed official model, used only for numerical verification."""
 
+import os
+import platform
 from types import SimpleNamespace
 
+import mlx.core as mx
 import torch
 from lerobot.policies.pi05.modeling_pi05 import PaliGemmaWithExpertModel, PI05Pytorch
 from lerobot.policies.pi_gemma import (
@@ -11,9 +14,38 @@ from lerobot.policies.pi_gemma import (
 from transformers import GemmaConfig, PaliGemmaConfig, SiglipVisionConfig
 
 
-def small_reference(seed=7):
-    torch.manual_seed(seed)
+def configure_runtime(device):
+    if device == "gpu":
+        if not mx.metal.is_available() or not torch.backends.mps.is_available():
+            raise RuntimeError("Verification requires MLX Metal and PyTorch MPS")
+        if os.environ.get("MLX_ENABLE_TF32") != "0":
+            raise RuntimeError("Launch with MLX_ENABLE_TF32=0 for float32 verification")
+        if os.environ.get("PYTORCH_ENABLE_MPS_FALLBACK", "0") != "0":
+            raise RuntimeError("PyTorch MPS CPU fallback must be disabled")
+        mx.set_default_device(mx.gpu)
+        return torch.device("mps")
+    if platform.system() == "Darwin":
+        raise RuntimeError("Local verification requires Metal; CPU verification is for Linux CI")
+    mx.set_default_device(mx.cpu)
     torch.set_num_threads(2)
+    return torch.device("cpu")
+
+
+def reference_device():
+    if platform.system() == "Darwin":
+        if not torch.backends.mps.is_available():
+            raise RuntimeError("The local PI05 reference requires PyTorch MPS")
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def small_reference(seed=7, device=None):
+    with torch.device(device or reference_device()):
+        return _small_reference(seed)
+
+
+def _small_reference(seed):
+    torch.manual_seed(seed)
     common = dict(
         num_hidden_layers=2,
         num_attention_heads=8,
@@ -65,17 +97,22 @@ def small_reference(seed=7):
     return core.eval()
 
 
-def small_inputs():
-    generator = torch.Generator().manual_seed(11)
+def small_inputs(device=None):
+    with torch.device(device or reference_device()):
+        return _small_inputs()
+
+
+def _small_inputs():
+    torch.manual_seed(11)
     return dict(
         images=[
-            torch.rand(2, 3, 16, 16, generator=generator) * 2 - 1,
-            torch.rand(2, 3, 16, 16, generator=generator) * 2 - 1,
+            torch.rand(2, 3, 16, 16) * 2 - 1,
+            torch.rand(2, 3, 16, 16) * 2 - 1,
         ],
         img_masks=[torch.tensor([True, True]), torch.tensor([False, True])],
         tokens=torch.tensor([[2, 3, 0, 0], [4, 5, 6, 0]]),
         masks=torch.tensor([[True, True, False, False], [True, True, True, False]]),
-        actions=torch.randn(2, 3, 8, generator=generator),
-        noise=torch.randn(2, 3, 8, generator=generator),
+        actions=torch.randn(2, 3, 8),
+        noise=torch.randn(2, 3, 8),
         time=torch.tensor([0.17, 0.81]),
     )

@@ -22,17 +22,13 @@ From the repository root, using Python 3.12 and uv 0.12.23:
 
 ```bash
 uv sync --locked --project integrations/mlx_pi
-uv run --locked --project integrations/mlx_pi python -m pytest -q integrations/mlx_pi
-uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.verify
+MLX_ENABLE_TF32=0 PYTORCH_ENABLE_MPS_FALLBACK=0 uv run --locked --project integrations/mlx_pi python -m pytest -q integrations/mlx_pi
+MLX_ENABLE_TF32=0 PYTORCH_ENABLE_MPS_FALLBACK=0 uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.verify --device gpu --output artifacts/mlx-metal.json
 ```
 
-The separate runtime pins MLX 0.32.4, LeRobot 0.6.1, Transformers 5.5.4 and PyTorch 2.11.0. Linux uses the official `mlx[cpu]` package. On Apple silicon, the same lockfile selects MLX Metal and the macOS PyTorch wheel. Run the numerical check on Metal explicitly:
+The separate runtime pins MLX 0.32.4, LeRobot 0.6.1, Transformers 5.5.4 and PyTorch 2.11.0. Linux uses the official `mlx[cpu]` package. On Apple silicon, the same lockfile selects MLX Metal and the macOS PyTorch wheel. On the Mac, model tests use MLX Metal and the official PyTorch encoder and reference use MPS. The checks fail if either GPU backend is unavailable. Host copies still handle checkpoint loading, cache transfer and result serialization.
 
-```bash
-uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.verify --device gpu --output artifacts/mlx-metal.json
-```
-
-The Metal command fails if no Apple GPU is available. It does not substitute a CPU run.
+Set `MLX_ENABLE_TF32=0` before the process starts. MLX otherwise enables reduced-precision float32 matrix multiplication on M5, which failed the existing parity tolerances. This setting retains float32 Metal execution. `PYTORCH_ENABLE_MPS_FALLBACK=0` prevents unsupported reference operations from running on CPU.
 
 ## What was verified
 
@@ -45,6 +41,8 @@ The Metal command fails if no Apple GPU is available. It does not substitute a C
 | Three Euler sampling steps | Maximum absolute error `2.38e-7` |
 | AdamW update with clipping and bias correction | Matches the official PyTorch loss/update within test tolerance |
 | Save after step one; resume step two | Loss, optimizer progression and every resulting parameter match exactly |
+
+The [Mac check](evidence/mlx-pi05-metal.json) runs the official encoder and reference on MPS and the action expert on MLX Metal. All 14 tests pass. Loss error is zero, maximum gradient error is `2.57e-7`, sampling error is `2.38e-7`, and checkpoint resume is exact. These remain small random-model checks.
 
 Tests also cover camera/text padding, official image resize and state prompts, shape/layout rejection, action-dimension masking, changed data contracts and corrupted checkpoint files. An invalid loss leaves the parameters and random state unchanged. The trainer uses a constant learning rate; it does not reproduce LeRobot's full training schedule.
 
@@ -86,4 +84,4 @@ The DROID export contains seven absolute joint positions in radians and one grip
 
 The public PI05 weight file is ungated. Google's official PaliGemma tokenizer requests returned HTTP 401 for both `tokenizer_config.json` and `tokenizer.json` on 2026-10-28. No agreement was accepted and no alternate copy was fetched. Full pretrained preprocessing needs an authorized local tokenizer. Run `python -m robo preflight` with the local weight, tokenizer and Metal-evidence paths to check those prerequisites. [Source and license details](../integrations/mlx_pi/NOTICE.md) distinguish the Apache implementation from the Gemma weights.
 
-The full checkpoint has not been loaded or trained here. M5 Pro memory use, Metal numerical results, sustained training speed and model quality still need a Mac run. The small CPU results above provide no estimate of those measurements. Mixed precision, quantization and training the vision/language encoder are outside this adapter's current scope.
+The small-model Mac checks now pass on MPS and MLX Metal. Full checkpoint execution, pretrained training, memory use, sustained training speed and model quality remain unverified. The small-model checks provide no estimate of those measurements. Mixed precision, quantization and training the vision/language encoder are outside this adapter's current scope.
