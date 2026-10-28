@@ -1,4 +1,4 @@
-"""Bounded DROID RLDS conversion contracts; no robot control or remote execution."""
+"""Validate the pinned DROID sample and its explicit feature mapping."""
 
 import numpy as np
 

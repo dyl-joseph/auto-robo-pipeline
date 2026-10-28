@@ -1,6 +1,6 @@
 # Evaluation protocol
 
-Status: proposed human-study protocol. The matching, timing, agreement and fixed-budget harness is implemented in `robo/evaluation.py` and exercised with explicit fixtures. No human study or real robot benchmark has been run. See [results](results.md) for the protocol input fields and observed software checks. Freeze numeric thresholds, split manifests, and analysis rules before a held-out run.
+This is a proposed human study, not a completed experiment or a requirement for the current release. `robo/evaluation.py` implements the matching, timing, agreement and review-budget calculations. Fixtures test those calculations; the separate [corruption benchmark](messy-droid.md) tests data recovery. See [results](results.md) for the protocol input fields and observed software checks. Freeze numeric thresholds, split manifests, and analysis rules before a held-out run.
 
 ## Hypothesis and decision rule
 
@@ -63,10 +63,8 @@ Bootstrap uncertainty at the episode/session-group level, respecting reviewer as
 
 An export passes only when all selected sources resolve, hashes match, intervals are valid, annotation revisions are eligible, label/schema versions agree, and split groups do not leak. The manifest records code/config versions, dataset/model provenance, inclusion/exclusion reasons, and artifact hashes. Rebuilding from the manifest must reproduce semantic contents and canonical content hashes; volatile timestamps are kept outside that comparison.
 
-A downstream policy-learning ablation is optional after the workflow works. It requires a pinned training recipe, a fixed compute budget, multiple seeds, and held-out robot/task evaluation. Do not claim improved robot performance based on annotation metrics alone.
+A separate policy-learning experiment would require downstream evaluation. It requires a pinned training recipe, a fixed compute budget, multiple seeds, and held-out robot/task evaluation. Do not claim improved robot performance based on annotation metrics alone.
 
 ## Release evidence
 
 Publish the frozen protocol, acquisition and split manifests to the extent licensing permits, anonymized review timings, matching/metric code, dataset card, representative corrected failures, and a table of observed results. Separate passed targets, failed targets, unavailable measurements, and limitations.
-
-The source notes link [Physical Intelligence research](https://www.pi.website/blog/pi07). Its current contents and detailed claims have not been verified during this setup. Verify any research statement against the primary source before citing it in a project report. The experiment does not depend on that claim being true.

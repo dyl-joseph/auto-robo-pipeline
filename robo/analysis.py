@@ -1,4 +1,4 @@
-"""Offline OpenCV baseline: motion regions and sparse feature trajectories, not semantics."""
+"""Propose motion intervals and sparse feature tracks with OpenCV."""
 
 from pathlib import Path
 

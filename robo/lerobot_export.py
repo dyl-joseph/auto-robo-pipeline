@@ -1,4 +1,4 @@
-"""Local official LeRobot conversion of an immutable accepted project export."""
+"""Convert an accepted export with the official LeRobot writer."""
 
 import argparse
 import json

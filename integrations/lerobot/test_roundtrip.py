@@ -1,4 +1,4 @@
-"""Real official writer/reader tests; synthetic software fixtures, no policy training."""
+"""Test the official LeRobot writer and loader with generated episodes."""
 
 import json
 import shutil

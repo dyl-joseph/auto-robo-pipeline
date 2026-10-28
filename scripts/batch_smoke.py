@@ -98,6 +98,14 @@ def verify_batch(sdk, store, directory, cookies, real_source=None):
         if (view.data or {}).get("title") == "Review priority"
     ]
     assert len(views) == 1
+    assert all(
+        task["url"] == f"http://testserver/projects/{project_id}/data?tab={views[0].id}"
+        for task in synced["native_tasks"].values()
+    )
+    summary = report_path.with_name("summary.txt").read_text()
+    assert all(
+        f"Native task {task['task_id']}" in summary for task in synced["native_tasks"].values()
+    )
     ordered = list(sdk.tasks.list(project=project_id, view=views[0].id))
     priorities = [task.data["review_priority"] for task in ordered]
     assert priorities == sorted(priorities, reverse=True)
@@ -121,6 +129,7 @@ def verify_batch(sdk, store, directory, cookies, real_source=None):
                 "LS_FIXTURE_COOKIES": json.dumps(cookies),
                 "LS_FIXTURE_PROJECT": str(project_id),
                 "LS_FIXTURE_TASK": str(ordered[0].id),
+                "LS_FIXTURE_TITLE": ordered[0].data["task"],
                 "LS_FIXTURE_VIEW": str(views[0].id),
             },
         )

@@ -119,13 +119,14 @@ def sync_queue(sdk, store, report_path, instance):
             state["tasks"][episode_id] = {
                 "project_id": project_id,
                 "task_id": task_id,
-                "url": f"{instance}/projects/{project_id}/data?task={task_id}",
+                "url": f"{instance}/projects/{project_id}/data",
             }
             atomic_json(state_path, state)
         for project_id in sorted(set(state["projects"].values())):
             views = sdk.views.list(project=project_id)
             name = "Review priority"
-            if not any((view.data or {}).get("title") == name for view in views):
+            matching_views = [view for view in views if (view.data or {}).get("title") == name]
+            if not matching_views:
                 hidden = [
                     "tasks:" + field
                     for field in (
@@ -152,7 +153,7 @@ def sync_queue(sdk, store, report_path, instance):
                         "data.episode_id",
                     )
                 ]
-                sdk.views.create(
+                view = sdk.views.create(
                     project=project_id,
                     data={
                         "title": name,
@@ -162,6 +163,12 @@ def sync_queue(sdk, store, report_path, instance):
                         "hiddenColumns": {"explore": hidden, "labeling": hidden},
                     },
                 )
+            else:
+                view = matching_views[0]
+            for task in state["tasks"].values():
+                if task["project_id"] == project_id:
+                    task["url"] = f"{instance}/projects/{project_id}/data?tab={view.id}"
+        atomic_json(state_path, state)
         report["native_tasks"] = state["tasks"]
         persist_report(report)
     return report

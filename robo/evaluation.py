@@ -1,4 +1,4 @@
-"""Temporal matching and fixed-budget evaluation from explicit reference artifacts."""
+"""Compare temporal labels and review selections with supplied references."""
 
 import random
 
@@ -179,7 +179,7 @@ def budget_metrics(items: list[dict], budget_s: float, seed: int = 7) -> dict:
 
 
 def study_metrics(protocol: dict) -> dict:
-    """Analyze reviewer artifacts when actually supplied; no simulated default timings."""
+    """Compute human-review metrics only from supplied timing records."""
     episodes = protocol["episodes"]
     evidence = protocol["evidence_kind"]
     agreements = []

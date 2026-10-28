@@ -1,4 +1,4 @@
-"""Explicit review decisions over fresh, authenticated Label Studio observations."""
+"""Approve saved Label Studio annotations after checking their current content."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -74,7 +74,6 @@ class NativeReviewBridge:
         project = self.sdk.projects.get(project_id)
         if config_hash(project.label_config) != config_hash(bundle["label_config"]):
             raise ValueError("native labeling configuration differs from the prepared review clock")
-        # Source/task/proxy validation applies before any trusted binding is persisted.
         annotation_snapshot(self.store, binding, {**task, "annotations": []}, bundle["proxy"])
         actual = [prediction_payload(p) for p in task["predictions"]]
         expected = [prediction_payload(p) for p in bundle["task"]["predictions"]]

@@ -1,4 +1,4 @@
-# Train a PI05 action expert with MLX
+# PI05 action-expert training in MLX
 
 The adapter runs the π₀.₅ action expert in MLX and keeps the official LeRobot vision/language encoder frozen in PyTorch. Images, task text and discretized robot state go through LeRobot's preprocessing. The encoder supplies one key/value cache per transformer layer; MLX uses those caches to predict and train action chunks.
 
@@ -80,10 +80,10 @@ The [inspection evidence](evidence/pi05-checkpoint.json) records the pinned revi
 uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.inspect_checkpoint artifacts/pi05-inspection
 ```
 
-The DROID export contains seven **absolute joint positions in radians** and one **gripper closure fraction**, with 0 open and 1 closed. `validate_droid_schema` rejects velocity fields, reordered joints, different units and implicit checkpoint mappings. The base PI05 model does not establish robot-specific semantics. Fine-tuning therefore needs an explicit action contract and statistics fitted to the chosen training split. The current one-episode DROID pilot uses an inferred 15 Hz clock and incomplete automated review labels; it cannot establish policy quality.
+The DROID export contains seven absolute joint positions in radians and one gripper closure fraction, with 0 open and 1 closed. `validate_droid_schema` rejects velocity fields, reordered joints, different units and implicit checkpoint mappings. The base PI05 model does not establish robot-specific semantics. Fine-tuning therefore needs an explicit action contract and statistics fitted to the chosen training split. The current one-episode DROID pilot uses an inferred 15 Hz clock and incomplete automated review labels; it cannot establish policy quality.
 
 ## Remaining pretrained and hardware checks
 
-The public PI05 weight file is ungated. Google's official PaliGemma tokenizer requests returned HTTP 401 for both `tokenizer_config.json` and `tokenizer.json` on 2026-10-28. No agreement was accepted and no alternate copy was fetched. Full pretrained preprocessing needs an authorized local tokenizer. [Source and license details](../integrations/mlx_pi/NOTICE.md) distinguish the Apache implementation from the Gemma weights.
+The public PI05 weight file is ungated. Google's official PaliGemma tokenizer requests returned HTTP 401 for both `tokenizer_config.json` and `tokenizer.json` on 2026-10-28. No agreement was accepted and no alternate copy was fetched. Full pretrained preprocessing needs an authorized local tokenizer. Run `python -m robo preflight` with the local weight, tokenizer and Metal-evidence paths to check those prerequisites. [Source and license details](../integrations/mlx_pi/NOTICE.md) distinguish the Apache implementation from the Gemma weights.
 
 The full checkpoint has not been loaded or trained here. M5 Pro memory use, Metal numerical results, sustained training speed and model quality still need a Mac run. The small CPU results above provide no estimate of those measurements. Mixed precision, quantization and training the vision/language encoder are outside this adapter's current scope.

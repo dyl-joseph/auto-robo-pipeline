@@ -1,46 +1,53 @@
-# Development environment
+# Set up development
 
-## Application workflow (current)
+Install Python 3.12, uv 0.12.23, FFmpeg with FFprobe, and Node.js for browser tests. From the repository root:
 
-Use the README commands for the implemented application. `python -m robo demo` prepares the local synthetic store and `python -m robo serve` binds to 127.0.0.1:8000. No process is started by setup. The material below records the original environment milestone.
+```bash
+./scripts/setup.sh
+uv run --locked python scripts/check_environment.py
+uv run --locked pytest -q
+npm ci --cache .cache/npm
+npm run check:web
+npm run format:check
+```
 
-Native Label Studio owns the current browser UI, served from its pinned application package. There is no project frontend build. `npm ci`, `npm run check:web` and `npm run format:check` validate browser verification and the temporary legacy editor. `pytest` covers the Python bridge; the real native integration runs with `python -m scripts.labelstudio_smoke --browser`.
+Setup installs the locked Python dependencies and starts no service. The readiness check generates and decodes 12 H.264 frames, checks video timestamps, round-trips a Parquet table and sends an in-process API request.
 
-In this saved Linux environment, system Chromium and FFmpeg can be reused for browser video without another download:
+## Run browser checks
+
+Label Studio supplies the UI from its pinned application package. There is no frontend build. Browser tests use the locked Playwright package:
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=.cache/playwright npx playwright install chrome ffmpeg
+CHROMIUM_PATH=/usr/bin/google-chrome uv run --locked python -m scripts.labelstudio_smoke --browser
+CHROMIUM_PATH=/usr/bin/google-chrome uv run --locked python -m scripts.labelstudio_smoke --batch
+```
+
+Use the actual browser executable path on your machine. In the saved Linux environment, `/usr/bin/chromium` and system FFmpeg are available. The recording helper can use system FFmpeg at the path expected by the locked Playwright release:
 
 ```bash
 mkdir -p .cache/playwright/ffmpeg-1013
 ln -sf /usr/bin/ffmpeg .cache/playwright/ffmpeg-1013/ffmpeg-linux
-npm run test:e2e
 ```
 
-This path is tied to the locked Playwright version. On another system use its documented browser install command in README. `CHROMIUM_PATH` overrides executable discovery. Browser tests create a disposable store, record their actions under `artifacts/browser-tests`, and save synthetic screenshots under `docs/evidence`. No real data or credentials are involved.
+Native tests create a disposable Label Studio database and authenticated session, exercise the UI and SDK, then remove the database. Failure reports omit credentials. The [integration guide](labelstudio.md) explains the pinned upstream regressions and the temporary token used by native export. `npm run test:e2e` covers the earlier editor's regression tests.
 
+To use the application yourself, run `uv run --locked python -m robo serve` and open `http://127.0.0.1:8000`. Label Studio's private database lives under the selected store's `labelstudio/` directory.
 
-## Locked dependencies and verification
+## Use isolated data and model runtimes
 
-Python 3.12 and uv 0.12.23 manage core ingest/export, Label Studio 1.23.2 and SDK 2.1.2. `./scripts/setup.sh` installs the default dev and labelstudio dependency groups. The lock includes Label Studio's NumPy/PyArrow constraints. LeRobot remains a separate integration gate.
+The root lockfile includes Label Studio 1.23.2 and SDK 2.1.2. TensorFlow, LeRobot and MLX have separate lockfiles under `integrations/`. Their guides provide the exact commands:
 
-`uv run --locked python scripts/check_environment.py` checks H.264 generation/decode, FFprobe timestamp metadata, Parquet and an API request. `uv run --locked pytest -q` runs behavior tests. Native browser verification uses a temporary migrated Label Studio database and real session permissions, then deletes it. See [integration details](labelstudio.md) for the transient native-export fixture token and supported version-specific feature flag.
+- [DROID decoding](droid.md) uses TensorFlow CPU and TFDS.
+- [LeRobot conversion](lerobot.md) uses the official writer and loader.
+- [MLX checks](mlx.md) use the PI05 model implementation and official Linux CPU package.
 
-Optional pinned perception weights use `python -m scripts.fetch_model` and stay ignored. No model benchmark or human study follows from these software checks.
+Set `HF_HOME="$PWD/.cache/huggingface"` for Hugging Face consumers so their cache stays in the workspace. Disable telemetry with `HF_HUB_DISABLE_TELEMETRY=1`. Use `HF_HUB_OFFLINE=1` for verification that already has all required local assets. Offline mode cannot provision a missing tokenizer.
 
-## Filesystem and runtime lifecycle
+## Keep generated files local
 
-- Use the existing checkout. Each cloud task is already isolated; do not create a Git worktree unless the user requests one.
-- Keep local datasets in `data/local/`, model weights in `models/local/`, and outputs in `artifacts/`. These paths are ignored by Git. Store licenses and reproducible public manifests separately from large media.
-- Keep credentials in environment settings. Never put secret values in repository files, shell tracing, logs, or saved startup instructions.
-- Installed files can survive an environment snapshot. Processes, sockets, and authentication sessions must be reestablished when required.
-- Setup starts no long-running process. Run `uv run --locked python -m robo serve` explicitly for the native GUI. Its private application database lives beneath the selected local store.
+Datasets belong in `data/local/`, weights in `models/local/`, and test output in `artifacts/`. Git ignores these directories and `.cache/`. Commit small provenance reports and permitted documentation images separately. Do not put secrets, databases or authenticated sessions in source control.
 
-## Cloud network settings
+An environment snapshot can retain installed files, but processes and sessions must be started again. Preserve the platform's proxy and CA settings. Public download access does not grant access to gated model assets or private networks.
 
-The user requested all public internet access. The configuration draft uses `allowed_domains: ["*"]`. Draft saving does not change this running machine's policy or publish a snapshot. Review and save the configuration in environment settings, then publish the environment to activate the prepared configuration. Verify the runtime policy after activation before claiming unrestricted access is live.
-
-Public HTTP/HTTPS access uses the platform proxy. This does not configure private-network/VPN access, arbitrary TCP routes, public inbound hosting, or credentials for gated datasets. Preserve the inherited proxy and CA trust.
-
-If the sandbox prevents a connection to the configured proxy, use the host's supported execution approval path. A local socket denial does not by itself establish a missing GitHub credential. Native Git access is supplied by the platform; do not request a personal token solely because a token variable is absent.
-
-## Dependency changes
-
-Keep `pyproject.toml`, `.python-version`, and `uv.lock` consistent. Run `uv lock` deliberately when changing dependencies, inspect the diff, and rerun setup and readiness checks. Optional model and web dependencies should be pinned with the milestone that introduces their consumer.
+When changing dependencies, update the relevant `pyproject.toml` and lockfile together. Rerun setup, inspect the lock diff and run the checks for that runtime.

@@ -1,4 +1,4 @@
-"""Reproducible reviewed training records; no media redistribution."""
+"""Write accepted revisions and their provenance as JSONL and Parquet."""
 
 import json
 import os

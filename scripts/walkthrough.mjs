@@ -1,4 +1,4 @@
-// Record the real editor with synthetic fixtures and explicitly automated decisions.
+// Record automated edits on generated episodes.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir, copyFile } from "node:fs/promises";
