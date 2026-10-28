@@ -70,9 +70,13 @@ def verify_snapshot(source, snapshot, shard=None, sha256=None):
 
 
 def verify_derivative(directory, origin, camera, expected_sha256=None):
+    if directory.parent.is_symlink():
+        raise ValueError("Episodes parent must not be a symlink")
     if directory.name != digest([origin.model_dump(), camera])[:32] or directory.is_symlink():
         raise ValueError("Published episode directory differs from its identity")
     evidence_path = directory / "conversion.json"
+    if evidence_path.is_symlink():
+        raise ValueError("Published conversion.json must not be a symlink")
     if expected_sha256 and file_hash(evidence_path) != expected_sha256:
         raise ValueError(f"Published evidence changed: {directory.name}")
     evidence = json.loads(evidence_path.read_text())
@@ -91,6 +95,12 @@ def verify_derivative(directory, origin, camera, expected_sha256=None):
         "conversion_sha256": file_hash(evidence_path),
         "steps": evidence["steps"],
     }
+
+
+def verify_publication(source, snapshot, shard, sha256, episodes):
+    verify_snapshot(source, snapshot, shard, sha256)
+    if episodes.is_symlink() or not episodes.is_dir():
+        raise ValueError("Episodes parent must remain an owned directory without symlinks")
 
 
 def intake(
@@ -145,6 +155,8 @@ def intake(
             report = {"contract": contract, "shards": {}, "status": "running"}
             atomic_json(checkpoint, report)
         episodes = output / "episodes"
+        if episodes.is_symlink():
+            raise ValueError("Episodes parent must not be a symlink")
         episodes.mkdir(exist_ok=True)
         staging = output / ".staging"
         # Only this locked job owns staging; interrupted, unpublished work can be discarded.
@@ -224,7 +236,12 @@ def intake(
                             max_steps=max_steps,
                             staging_parent=staging,
                             verify=partial(
-                                verify_snapshot, source, snapshot, current_shard, sha256
+                                verify_publication,
+                                source,
+                                snapshot,
+                                current_shard,
+                                sha256,
+                                episodes,
                             ),
                         )
                     else:
