@@ -1,26 +1,144 @@
 {
   "evidence_kind": "synthetic_fixture",
+  "diagnosis": "Persistent task-store/editor divergence from list replacement; not a saved annotation or a transient media-readiness state.",
   "loading_control": {
     "upstream_version": "1.23.2",
     "response_order": "two_task_details_then_list",
-    "cold": {
-      "task_predictions": 0,
-      "editor_predictions": 0,
-      "human_annotations": 1
-    }
+    "cases": [
+      {
+        "order": "list_before_editor",
+        "cold": {
+          "task_predictions": 0,
+          "editor_predictions": 0,
+          "human_annotations": 1
+        },
+        "persistence_ms": 2000,
+        "samples": [
+          {
+            "task_predictions": 0,
+            "editor_predictions": 0,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 0,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 0,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 0,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 0,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 0,
+            "human_annotations": 1
+          }
+        ],
+        "server_annotations": 0,
+        "recovered": {
+          "task_id": 3,
+          "prediction_ids": [
+            3
+          ],
+          "contents_match": true
+        }
+      },
+      {
+        "order": "editor_before_list",
+        "cold": {
+          "task_predictions": 0,
+          "editor_predictions": 1,
+          "human_annotations": 1
+        },
+        "persistence_ms": 2000,
+        "samples": [
+          {
+            "task_predictions": 0,
+            "editor_predictions": 1,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 1,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 1,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 1,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 1,
+            "human_annotations": 1
+          },
+          {
+            "task_predictions": 0,
+            "editor_predictions": 1,
+            "human_annotations": 1
+          }
+        ],
+        "server_annotations": 0,
+        "recovered": {
+          "task_id": 4,
+          "prediction_ids": [
+            4
+          ],
+          "contents_match": true
+        }
+      }
+    ]
   },
   "recovered_review": {
     "evidence_kind": "synthetic_fixture",
     "entry_path": "native_task_table",
+    "cold_task_loading_control": true,
     "cpu_throttle_rate": 6,
     "native_video_playback": true,
     "sensor_seek_sync": true,
     "native_annotation_update": true,
+    "prediction_after_reload": {
+      "task_id": 2,
+      "prediction_ids": [
+        2
+      ],
+      "contents_match": true
+    },
     "native_temporal_edit": {
       "start": 1,
       "end": 6
     },
+    "native_outcome": "failure",
+    "native_quality": [
+      "recovery"
+    ],
     "mutation_trace": [
+      {
+        "path": "/api/dm/views",
+        "method": "POST",
+        "status": 201
+      },
+      {
+        "path": "/api/dm/views",
+        "method": "POST",
+        "status": 201
+      },
       {
         "path": "/api/dm/views",
         "method": "POST",
@@ -32,6 +150,61 @@
         "status": 201
       }
     ],
-    "script_errors": []
+    "script_errors": [],
+    "loading_control_errors": []
+  },
+  "real_droid_regression": {
+    "evidence_kind": "real_droid_automated_integration",
+    "episodes": 1,
+    "source_frames": 119,
+    "source_timing": "inferred_nominal_fps",
+    "cold_cases": [
+      {
+        "order": "list_before_editor",
+        "cold": {
+          "task_predictions": 0,
+          "editor_predictions": 0,
+          "human_annotations": 1
+        },
+        "samples_checked": 6,
+        "persistence_ms": 2000,
+        "recovered": {
+          "task_id": 3,
+          "prediction_ids": [
+            3
+          ],
+          "contents_match": true
+        }
+      },
+      {
+        "order": "editor_before_list",
+        "cold": {
+          "task_predictions": 0,
+          "editor_predictions": 1,
+          "human_annotations": 1
+        },
+        "samples_checked": 6,
+        "persistence_ms": 2000,
+        "recovered": {
+          "task_id": 4,
+          "prediction_ids": [
+            4
+          ],
+          "contents_match": true
+        }
+      }
+    ],
+    "prediction_after_reload": {
+      "task_id": 2,
+      "prediction_ids": [
+        2
+      ],
+      "contents_match": true
+    },
+    "native_review_approval_export_verified": true,
+    "official_lerobot_rows_checked": 119,
+    "semantic_accuracy_measured": false,
+    "human_review_measured": false,
+    "source": "DROID (Khazatsky et al., 2024), CC-BY-4.0; existing pinned pilot"
   }
 }
