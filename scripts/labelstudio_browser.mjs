@@ -7,6 +7,20 @@ const browser = await chromium.launch({
 let page;
 const mutations = [];
 const errors = [];
+async function waitForVideo() {
+  const video = page.locator("video");
+  // A cold editor may mount after the default seven-second locator timeout.
+  // Keep attachment separate so readiness polling cannot fail on that timeout.
+  await video.waitFor({ state: "attached", timeout: 30000 });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => document.querySelector("video")?.readyState ?? -1),
+      { timeout: 20000 },
+    )
+    .toBe(4);
+  return video;
+}
 async function review() {
   const context = await browser.newContext({
     viewport: { width: 1512, height: 1050 },
@@ -116,11 +130,7 @@ async function review() {
   const projectURL = `http://127.0.0.1:8134/projects/${process.env.LS_FIXTURE_PROJECT}/data`;
   if (loadingContract) {
     await page.goto(`${projectURL}?task=${process.env.LS_FIXTURE_TASK}`);
-    await expect
-      .poll(() => page.locator("video").evaluate((v) => v.readyState), {
-        timeout: 20000,
-      })
-      .toBe(4);
+    await waitForVideo();
     const cold = await page.evaluate(() => ({
       task_predictions: window.DM.taskStore.selected.predictions.length,
       editor_predictions: window.Htx.annotationStore.predictions.length,
@@ -157,11 +167,7 @@ async function review() {
   });
   await taskRow.waitFor({ state: "visible", timeout: 20000 });
   await taskRow.getByText("Transfer cube", { exact: true }).click();
-  const video = page.locator("video");
-  await video.waitFor({ state: "attached" });
-  await expect
-    .poll(() => video.evaluate((v) => v.readyState), { timeout: 20000 })
-    .toBe(4);
+  const video = await waitForVideo();
   const initialTask = await (
     await page.request.get(
       `http://127.0.0.1:8134/api/tasks/${process.env.LS_FIXTURE_TASK}/`,

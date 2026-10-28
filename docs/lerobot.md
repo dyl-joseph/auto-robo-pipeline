@@ -96,6 +96,8 @@ uv run --locked --project integrations/lerobot python -m integrations.lerobot.ve
 
 CI transfers the actual browser/SDK smoke's accepted synthetic artifact and media to a separate LeRobot job. It checks 96 training rows, decoded images, native outcome/quality, the corrected 0.5-second boundary, original PTS, repeat conversion and a DataLoader batch. It transfers no Label Studio database, session or credential. [Recorded run](evidence/lerobot-roundtrip.json).
 
+The cold-loading negative control waits up to 30 seconds for the video element to attach, then polls its readiness for up to 20 seconds. This avoids the editor's cold mount failing on Playwright's seven-second locator default inside the readiness poll. The controlled response ordering and zero-prediction assertion remain intact. The complete native correction/approval/export smoke passed with the control enabled and 6× CPU throttling in the published environment; its process has a 150-second overall cap.
+
 Real DROID acquisition remains blocked by the unchanged environment's Google storage proxy 403; no DROID bytes were downloaded. No optimizer step, PI-family weight conversion, fine-tuning, policy evaluation, human-efficiency study or Apple benchmark is claimed. These remain separate gates.
 
 Sources: [official LeRobot v3 format](https://huggingface.co/docs/lerobot/lerobot-dataset-v3), [pinned PyPI release](https://pypi.org/project/lerobot/0.6.1/), [official TorchCodec compatibility](https://github.com/meta-pytorch/torchcodec#compatibility-with-torch-versions). The installed 0.6.1 API is exercised directly.

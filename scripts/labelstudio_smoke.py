@@ -301,7 +301,10 @@ def run(directory: Path):
                 )
                 return
             subprocess.run(
-                ["node", "scripts/labelstudio_browser.mjs"], env=environment, check=True, timeout=90
+                ["node", "scripts/labelstudio_browser.mjs"],
+                env=environment,
+                check=True,
+                timeout=150,
             )
             exported_task = next(task for task in native_export() if task["id"] == browser_task_id)
             prediction = sdk.predictions.get(exported_task["predictions"][0])
