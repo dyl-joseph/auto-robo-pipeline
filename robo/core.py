@@ -100,8 +100,8 @@ class Edit(Contract):
     quality_flags: list[Literal["recovery", "occluded", "corrupt", "uncertain", "incomplete"]] = (
         Field(default_factory=list)
     )
-    active_s: float = Field(ge=0, le=86400, default=0)
-    wall_s: float = Field(ge=0, le=86400, default=0)
+    active_s: float | None = Field(ge=0, le=86400, default=0)
+    wall_s: float | None = Field(ge=0, le=86400, default=0)
     condition: Literal["manual", "assisted"] = "manual"
     suggestion_run: str | None = Field(default=None, pattern=r"^[a-f0-9]{24}$")
     perception_run: str | None = Field(default=None, pattern=r"^[a-f0-9]{24}$")
@@ -110,7 +110,9 @@ class Edit(Contract):
     def timing(self):
         if self.condition == "manual" and (self.suggestion_run or self.perception_run):
             raise ValueError("manual reviews cannot claim machine evidence origins")
-        if self.active_s > self.wall_s + 0.01:
+        if (self.active_s is None) != (self.wall_s is None):
+            raise ValueError("active and wall time must both be measured or both unknown")
+        if self.active_s is not None and self.active_s > self.wall_s + 0.01:
             raise ValueError("active time cannot exceed wall time")
         if not self.actor.strip() or not self.rationale.strip():
             raise ValueError("actor and rationale cannot be blank")

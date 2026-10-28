@@ -16,14 +16,18 @@ from robo.perception import active_perception
 from robo.store import Store
 
 
-def export_dataset(store: Store, selection: list[dict], output: Path) -> dict:
+def export_dataset(
+    store: Store, selection: list[dict], output: Path, *, native_validator=None
+) -> dict:
     # Freeze review eligibility while collecting a consistent export snapshot.
     with store.connect() as db:
         db.execute("BEGIN IMMEDIATE")
-        return _export_dataset(store, selection, output)
+        return _export_dataset(store, selection, output, native_validator)
 
 
-def _export_dataset(store: Store, selection: list[dict], output: Path) -> dict:
+def _export_dataset(
+    store: Store, selection: list[dict], output: Path, native_validator=None
+) -> dict:
     if not selection:
         raise ValueError("select at least one accepted revision")
     if len({row["episode_id"] for row in selection}) != len(selection):
@@ -50,6 +54,10 @@ def _export_dataset(store: Store, selection: list[dict], output: Path) -> dict:
         revision = store.latest(episode["id"])
         if revision["revision"] != item["revision"] or revision["status"] != "accepted":
             raise ValueError("export requires the latest explicitly accepted revision")
+        if store.native_binding(episode["id"]) or revision.get("native"):
+            if not revision.get("native") or native_validator is None:
+                raise ValueError("native export requires an authenticated freshness check")
+            native_validator(revision)
         video = store.root / episode["media"]
         if file_hash(video) != episode["video_sha256"]:
             raise ValueError("source hash mismatch")

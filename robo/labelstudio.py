@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 from robo.analysis import latest_run
-from robo.core import LABELS, atomic_json, digest, file_hash, validate_segments
+from robo.core import LABELS, Edit, atomic_json, digest, file_hash, validate_segments
 from robo.store import Store
 
 
@@ -357,6 +357,7 @@ def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) ->
                 "annotation_id": annotation["id"],
                 "content_hash": digest(annotation),
                 "segments": decoded_segments(annotation["result"], proxy, episode),
+                **review_fields(annotation["result"]),
                 "raw_annotation": annotation,
                 "boundary_evidence": boundary_evidence(annotation["result"], proxy, episode),
                 "eligibility": "draft; explicit bridge approval still required",
@@ -374,6 +375,50 @@ def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) ->
     }
     snapshot["snapshot_hash"] = digest(snapshot)
     return snapshot
+
+
+def review_fields(results: list[dict]) -> dict:
+    """Decode only the supported native controls; do not silently drop human decisions."""
+    fields = {"outcome": "unknown", "quality_flags": [], "reviewer_evidence": []}
+    seen = set()
+    for result in results:
+        kind, name = result.get("type"), result.get("from_name")
+        if kind == "timelinelabels" and name == "subtask":
+            continue
+        expected = {"outcome": "choices", "quality": "choices", "decision_note": "textarea"}
+        if (
+            name not in expected
+            or kind != expected[name]
+            or result.get("to_name") != "video"
+            or name in seen
+        ):
+            raise ValueError("unsupported or duplicate native review control")
+        seen.add(name)
+        value = result.get("value", {})
+        values = value.get("text" if name == "decision_note" else "choices")
+        if not isinstance(values, list) or any(not isinstance(v, str) for v in values):
+            raise ValueError("native review values must be lists of strings")
+        if name == "outcome":
+            if len(values) > 1:
+                raise ValueError("native outcome must be mutually exclusive")
+            fields["outcome"] = values[0] if values else "unknown"
+        elif name == "quality":
+            if len(values) != len(set(values)):
+                raise ValueError("duplicate native quality flag")
+            fields["quality_flags"] = sorted(values)
+        else:
+            if sum(map(len, values)) > 20000:
+                raise ValueError("native reviewer evidence exceeds 20000 characters")
+            fields["reviewer_evidence"] = values
+    Edit(
+        expected_revision=0,
+        actor="decoder",
+        rationale="validate native review fields",
+        segments=[],
+        outcome=fields["outcome"],
+        quality_flags=fields["quality_flags"],
+    )
+    return fields
 
 
 def boundary_evidence(results: list[dict], proxy: dict, episode: dict) -> list[dict]:
@@ -416,6 +461,7 @@ def prepare_bundle(store: Store, episode_id: str, output: Path, fps: int | None 
     atomic_json(output / "tasks.json", [bundle["task"]])
     atomic_json(output / "provenance.json", bundle["trusted_origin"])
     atomic_json(output / "mapping.json", bundle["proxy"])
+    atomic_json(output / "bundle.json", bundle)
     (output / "review.xml").write_text(bundle["label_config"])
     return {
         "output": str(output.resolve()),
