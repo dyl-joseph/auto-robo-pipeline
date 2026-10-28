@@ -20,9 +20,14 @@ dev = [
     "pytest-cov>=6,<8",
     "ruff>=0.11,<1",
 ]
+labelstudio = [
+    "label-studio==1.23.2",
+    "label-studio-sdk==2.1.2",
+]
 
 [tool.uv]
 package = false
+default-groups = ["dev", "labelstudio"]
 required-version = "==0.12.23"
 cache-dir = ".cache/uv"
 

@@ -34,8 +34,17 @@ def main():
     perception.add_argument("--model-dir", type=Path, default=Path("models/local/mobilenet-ssd"))
     perception.add_argument("--sample-every-s", type=float, default=0.5)
     perception.add_argument("--max-frames", type=int, default=600)
-    serve = commands.add_parser("serve")
+    ls_prepare = commands.add_parser("prepare-labelstudio")
+    ls_prepare.add_argument("episode_id")
+    ls_prepare.add_argument("--output", type=Path, default=Path("artifacts/labelstudio-bundle"))
+    ls_prepare.add_argument(
+        "--fps", type=int, help="explicit coarser grid; default retains source frames"
+    )
+    serve = commands.add_parser("serve", help="start the primary native Label Studio GUI")
     serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument(
+        "--legacy-editor", action="store_true", help="development-only historical prototype"
+    )
     export = commands.add_parser("export")
     export.add_argument("selection", type=Path)
     export.add_argument("output", type=Path)
@@ -53,6 +62,10 @@ def main():
             result = import_episode(args.manifest, store)
         elif args.command == "suggest":
             result = suggest(store, args.episode_id)
+        elif args.command == "prepare-labelstudio":
+            from robo.labelstudio import prepare_bundle
+
+            result = prepare_bundle(store, args.episode_id, args.output, args.fps)
         elif args.command == "curate":
             from robo.curation import curate
 
@@ -72,11 +85,16 @@ def main():
             result = evaluate(json.loads(args.protocol.read_text()))
             atomic_json(args.output, result)
         else:
-            import uvicorn
+            if args.legacy_editor:
+                import uvicorn
 
-            from robo.api import create_app
+                from robo.api import create_app
 
-            uvicorn.run(create_app(args.store), host="127.0.0.1", port=args.port)
+                uvicorn.run(create_app(args.store), host="127.0.0.1", port=args.port)
+            else:
+                from robo.labelstudio import serve_labelstudio
+
+                serve_labelstudio(store, args.port)
             return
         print(json.dumps(result, indent=2))
     except (ValueError, KeyError, OSError, subprocess.SubprocessError) as exc:

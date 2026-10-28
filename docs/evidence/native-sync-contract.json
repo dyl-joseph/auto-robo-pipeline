@@ -1,0 +1,247 @@
+[
+  {
+    "variant": "official-time",
+    "beforeOpen": {
+      "canvasWidth": 923,
+      "notReady": false,
+      "range": [
+        -2208988800000,
+        -2208988792084
+      ],
+      "keys": [
+        -2208988800000,
+        -2208988792084
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 923
+    },
+    "before": {
+      "canvasWidth": 923,
+      "notReady": false,
+      "range": [
+        -2208988800000,
+        -2208988792084
+      ],
+      "keys": [
+        -2208988800000,
+        -2208988792084
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 923
+    },
+    "after": {
+      "canvasWidth": 923,
+      "notReady": false,
+      "range": [
+        -2208988800000,
+        -2208988792084
+      ],
+      "keys": [
+        -2208988800000,
+        -2208988792084
+      ],
+      "cursor": -2208988794459,
+      "videoTime": 5.541,
+      "domWidth": 923
+    },
+    "errors": []
+  },
+  {
+    "variant": "numeric",
+    "beforeOpen": {
+      "canvasWidth": 923,
+      "notReady": false,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 923
+    },
+    "before": {
+      "canvasWidth": 923,
+      "notReady": false,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 923
+    },
+    "after": {
+      "canvasWidth": 923,
+      "notReady": false,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": 5.5407385697538105,
+      "videoTime": 5.540738,
+      "domWidth": 923
+    },
+    "errors": []
+  },
+  {
+    "variant": "collapsed",
+    "beforeOpen": {
+      "canvasWidth": 0,
+      "notReady": true,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 0
+    },
+    "before": {
+      "canvasWidth": 0,
+      "notReady": true,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 891
+    },
+    "after": {
+      "canvasWidth": 0,
+      "notReady": true,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 891
+    },
+    "errors": []
+  },
+  {
+    "variant": "open-resized",
+    "beforeOpen": {
+      "canvasWidth": 891,
+      "notReady": false,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 891
+    },
+    "before": {
+      "canvasWidth": 0,
+      "notReady": true,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 779
+    },
+    "after": {
+      "canvasWidth": 0,
+      "notReady": true,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 779
+    },
+    "errors": []
+  },
+  {
+    "variant": "themed",
+    "beforeOpen": {
+      "canvasWidth": 875,
+      "notReady": false,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 875
+    },
+    "before": {
+      "canvasWidth": 763,
+      "notReady": false,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": null,
+      "videoTime": 0,
+      "domWidth": 763
+    },
+    "after": {
+      "canvasWidth": 763,
+      "notReady": false,
+      "range": [
+        0,
+        7.916666666666667
+      ],
+      "keys": [
+        0,
+        7.916666666666667
+      ],
+      "cursor": 5.54052429052429,
+      "videoTime": 5.540524,
+      "domWidth": 763
+    },
+    "errors": []
+  }
+]

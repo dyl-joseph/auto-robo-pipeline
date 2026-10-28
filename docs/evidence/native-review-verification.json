@@ -1,0 +1,76 @@
+{
+  "evidence_kind": "automated_synthetic_fixture_not_human_study",
+  "label_studio": "1.23.2",
+  "sdk": "2.1.2",
+  "command": "uv run --locked python -m scripts.labelstudio_smoke --browser",
+  "browser": {
+    "evidence_kind": "synthetic_fixture",
+    "native_video_playback": true,
+    "sensor_seek_sync": true,
+    "native_annotation_update": true,
+    "native_temporal_edit": {
+      "start": 1,
+      "end": 6
+    },
+    "mutation_trace": [
+      {
+        "path": "/api/dm/views",
+        "method": "POST",
+        "status": 201
+      },
+      {
+        "path": "/api/tasks/2/annotations",
+        "method": "POST",
+        "status": 201
+      }
+    ],
+    "script_errors": []
+  },
+  "design": {
+    "background": "rgb(245, 244, 239)",
+    "font": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+    "headingFont": "Georgia, \"Times New Roman\", serif",
+    "headingSize": "30px"
+  },
+  "fidelity": {
+    "automatic_fps": true,
+    "displayed_source_frame_count": 94,
+    "grid_period_s": 0.08333333333333333,
+    "max_display_hold_s": 0.16666666666666666,
+    "max_source_gap_s": 0.25,
+    "skipped_source_frame_count": 0,
+    "source_frame_count": 94
+  },
+  "boundary_policy": "Native inclusive frames [a,b] map to episode-clock interval [(a-1)/fps,min(b/fps,duration)). Boundaries are generated grid times, not measured source PTS. Source brackets expose unobserved gaps. Machine boundaries snap to the nearest common grid edge; collapsed candidates are omitted.",
+  "first_edited_segment": {
+    "end_s": 0.5,
+    "label": "hold",
+    "start_s": 0.0
+  },
+  "first_boundary_evidence": {
+    "end": {
+      "episode_time_s": 0.5,
+      "following_source_pts": 7168,
+      "is_measured_source_boundary": false,
+      "preceding_source_pts": 4096,
+      "source_bracket_s": [
+        0.3333333333333333,
+        0.5833333333333334
+      ],
+      "source_bracket_width_s": 0.25
+    },
+    "result_id": "segment-0",
+    "start": {
+      "episode_time_s": 0.0,
+      "following_source_pts": 0,
+      "is_measured_source_boundary": true,
+      "preceding_source_pts": 0,
+      "source_bracket_s": [
+        0.0,
+        0.0
+      ],
+      "source_bracket_width_s": 0.0
+    }
+  },
+  "eligibility": "draft; explicit bridge approval still required"
+}

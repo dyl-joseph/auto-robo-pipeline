@@ -1,0 +1,86 @@
+<View className="episode-review">
+  <Style>
+    :root[data-color-scheme] {
+      --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --color-neutral-background: #f5f4ef;
+      --color-neutral-surface: #f5f4ef;
+      --color-neutral-surface-inset: #fff;
+      --color-neutral-surface-hover: #ebe9e0;
+      --color-neutral-surface-active: #e4e2d8;
+      --color-neutral-content: #000;
+      --color-neutral-content-subtle: #686868;
+      --color-neutral-content-subtler: #686868;
+      --color-neutral-content-subtlest: #686868;
+      --color-neutral-border: #d4d3cb;
+      --color-neutral-border-bold: #c0bdad;
+      --color-primary-content: #000;
+      --color-primary-icon: #000;
+      --color-primary-background: #eeece2;
+      --color-primary-border: #000;
+      --color-primary-border-subtle: #c0bdad;
+      --color-primary-surface: #000;
+      --color-primary-surface-hover: #333;
+      --color-primary-surface-active: #000;
+      --color-primary-surface-content: #fff;
+      --color-primary-emphasis-subtle: #e4e2d8;
+      --color-primary-emphasis: #e4e2d8;
+      --color-primary-focus-outline: #686868;
+    }
+    body[data-lsf-labeling] {
+      background: #f5f4ef; color: #000;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+      font-size: 14px; line-height: 20px;
+    }
+    body[data-lsf-labeling] button, body[data-lsf-labeling] input,
+    body[data-lsf-labeling] textarea, body[data-lsf-labeling] select {
+      font-family: inherit !important; border-radius: 0 !important;
+    }
+    body[data-lsf-labeling] * { font-family: inherit !important; }
+    .episode-review {
+      background: #f5f4ef; color: #000; padding: 16px 24px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 14px; line-height: 20px;
+    }
+    body[data-lsf-labeling] .episode-title, body[data-lsf-labeling] .episode-title * {
+      font-family: Georgia, "Times New Roman", serif !important; font-size: 30px;
+      font-weight: normal; line-height: 36px; margin: 0 0 8px;
+    }
+    .episode-note { color: #686868; font-size: 12px; line-height: 16px; margin: 4px 0 16px; }
+    .episode-title *, .episode-note * { margin: 0 !important; }
+    .episode-row {
+      display: grid; grid-template-columns: 72px 1fr; align-items: center;
+      gap: 12px; padding: 4px 0;
+    }
+    .episode-row-title { font-size: 12px; color: #686868; }
+    .episode-row-title * { margin: 0 !important; }
+    .episode-row .lsf-choices { margin: 0 !important; padding: 0 !important; }
+    .episode-media {
+      background: #fff; border: 1px solid #000; box-shadow: 3px 3px 0 #000;
+      padding: 8px 12px; margin: 0 3px 16px 0;
+    }
+    .episode-review a { color: #000; text-decoration: underline; }
+    .episode-review input, .episode-review textarea { border-radius: 0; }
+  </Style>
+  <View className="episode-title"><Text name="task" value="$task"/></View>
+  <View className="episode-note"><Text name="provenance" value="$provenance"/></View>
+  <View className="episode-media"><Video name="video" value="$video" frameRate="__FPS__" sync="episode" height="300" timelineHeight="100"/></View>
+  <TimelineLabels name="subtask" toName="video">__LABELS__</TimelineLabels>
+  <View className="episode-row">
+  <View className="episode-row-title"><Text name="outcome_title" value="Outcome"/></View>
+  <Choices name="outcome" toName="video" choice="single-radio" showInline="true">
+    <Choice value="unknown"/><Choice value="success"/><Choice value="failure"/>
+  </Choices>
+  </View>
+  <View className="episode-row">
+  <View className="episode-row-title"><Text name="quality_title" value="Quality"/></View>
+  <Choices name="quality" toName="video" choice="multiple" showInline="true">
+    <Choice value="recovery"/><Choice value="occluded"/><Choice value="uncertain"/>
+    <Choice value="corrupt"/><Choice value="incomplete"/>
+  </Choices>
+  </View>
+  <TextArea name="decision_note" toName="video" placeholder="Evidence, corrections, and uncertainty"/>
+  <View className="episode-signals">
+    <View className="episode-note"><Text name="signals_title" value="Robot signals · seconds"/></View>
+    __SENSORS__
+  </View>
+</View>

@@ -1,106 +1,70 @@
-# Episode / Robot data curation
+# Robot episode curation
 
-A local workspace for turning robot video and synchronized streams into reviewed, versioned training records. Inspect machine evidence, correct temporal annotations, keep an audit trail, and export only accepted revisions.
+A local robotics data pipeline built around **Label Studio**, with project code focused on source alignment, provenance, assisted-review integration and evaluation.
 
-![Episode review workspace — synthetic fixture](docs/evidence/synchronized-review.png)
+![Native Label Studio review — synthetic fixture](docs/evidence/labelstudio-native-desktop.png)
 
-[Watch the browser walkthrough](docs/evidence/review-walkthrough.webm) · [Export view](docs/evidence/dataset-export.png) · [Evidence and limitations](docs/results.md)
+The first ecosystem migration slice is implemented: the real Label Studio application and official SDK import video/sensor tasks and predictions, save corrections, and export annotations against trusted source bindings. The earlier bespoke editor is a development prototype, available only through `--legacy-editor`. It is being superseded rather than maintained as a second primary product.
 
-## Run it
+## Run the native GUI
 
-Requires Python 3.12, uv 0.12.23, FFmpeg/FFprobe. No account, GPU or paid service is needed. The editor uses a restrained, light layout with the video and timeline as its main surfaces.
+Requires Python 3.12, uv 0.12.23, FFmpeg/FFprobe. The lockfile includes Label Studio 1.23.2 and SDK 2.1.2.
 
 ```bash
 ./scripts/setup.sh
 uv run --locked python -m robo demo
+# Choose an episode ID printed above:
+uv run --locked python -m robo prepare-labelstudio EPISODE_ID
 uv run --locked python -m robo serve
 # Open http://127.0.0.1:8000
 ```
 
-This creates **six synthetic, eight-second illustrated episodes**, with generated state/action streams, one video-only case, and a blurred interval. They validate software mechanics. They are not physical robot demonstrations or human annotation research.
+`serve` starts native Label Studio on loopback using its normal local authentication. The installer does not provision an account or persistent API credential. Use the application's local setup/login workflow.
 
-1. Select an episode; inspect video, original presentation timestamps and available streams.
-2. Start manually or use heuristic motion candidates. Edit labels and boundaries; use `Space`, arrows, `[` and `]` for playback and boundaries.
-3. Save a draft with a reviewer ID and decision note. Accept it in a separate action. Uncertain evidence can go to adjudication; exclusion needs a note.
-4. Export accepted revisions to JSONL and Parquet. Choose splits by session; validation rejects leakage and changed source files.
+For this first slice, create a Label Studio project, paste `artifacts/labelstudio-bundle/review.xml` into its labeling configuration, and import `tasks.json`. Add Local Files source storage at the `local_storage_path` printed by the preparation command, with **Treat every object as a source file** enabled. Do not sync the proxy directory as new tasks; the supplied tasks already bind video and sensor files. [Integration guide](docs/labelstudio.md) explains SDK automation, frame precision and verification; [design notes](docs/design.md) document the PI-inspired styling and retained Label Studio branding.
 
-An edit to an accepted revision creates a new draft. A second browser tab cannot overwrite a newer revision. Restore creates a draft while retaining all prior decisions. Active timing includes playback and correction, counts visible playback throughout, pauses after 30 seconds of editing idle time or when hidden, and is explicitly client reported.
+The demonstration contains six generated illustrated episodes, eight seconds each. Its state/action streams are generated fixtures. It validates software mechanics and does **not** satisfy the real-DROID acceptance gate or establish human annotation savings.
 
-## What runs today
+## Ownership
 
 ```mermaid
 flowchart LR
-    A[Local video + source manifest] --> B[FFprobe PTS + stream validation]
-    B --> C[Immutable source snapshot]
-    C --> D[OpenCV motion + sparse flow]
-    C --> E[Optional pretrained MobileNet-SSD]
-    D --> F[Explainable queue + temporal editor]
-    E --> F
-    F --> G[(SQLite revisions + review effort)]
-    G --> H[Eligibility + hash + split checks]
-    H --> I[Versioned JSONL / Parquet]
-    I --> J[Training record consumer + evaluation]
+    A[Video + measured source clocks] --> B[Robotics alignment / provenance bridge]
+    B --> C[CFR display proxy + explicit original-PTS map]
+    C --> D[Native Label Studio video / timeline / sensor GUI]
+    E[Cached prediction evidence] --> D
+    D --> F[Official SDK / native JSON export]
+    F --> G[Trusted binding + immutable draft snapshot]
+    G --> H[Explicit eligibility / quality / split gates]
+    H -. next integration .-> I[LeRobot loader / training dataset]
 ```
 
-| Capability | Implemented behavior | Limit |
-| --- | --- | --- |
-| Import | Stable identity, immutable copied video, original PTS/time base, units, offsets, nearest-sample masks | One primary camera; local manifest adapter |
-| Perception | Motion regions, sparse optical flow, cached motion/hold segments; optional pretrained VOC object detector | No learned action recognition, masks, or persistent object identities |
-| Review | Video seeking, temporal tracks, boundary editing, manual condition, uncertainty, restore, audit and timing | Local trusted reviewers; no authentication |
-| Curation | Warning reasons, task diversity, exact duplicate groups, seeded random baseline, before/after coverage | No learned ranking or near-duplicate embeddings |
-| Export | Latest accepted revisions, complete audit/provenance, streams/masks, content hashes, session/duplicate split checks | Media references only; no policy-training claim |
-| Evaluation | Optimal one-to-one temporal matching, F1 at 0.3/0.5/0.7, boundary errors, agreement, all-event timing, group bootstrap, fixed-budget error recall | Human study and real-data quality results remain unmeasured |
+| Boundary | Current state |
+| --- | --- |
+| Source ingest | Immutable video snapshots, measured PTS, optional streams, declared units/offsets and missing-data masks |
+| Mature review UI | Native Video, TimelineLabels and synchronized TimeSeries; project theme uses supported Style/View configuration |
+| SDK bridge | Actual project/task/prediction import, correction, native JSON export and trusted task/source/proxy validation exercised |
+| Timing/approval | Imported annotations remain drafts. Label Studio `lead_time` is not treated as measured active correction time. Native completion does not imply training eligibility |
+| Curation/evaluation | Transparent ranking, coverage and evaluation machinery from the prototype remain reusable; integration with Label Studio task scheduling is pending |
+| Training format | Existing project JSONL/Parquet consumer is tested; actual LeRobot round-trip is an open integration gate |
+| Real data | DROID acquisition blocked by the prior runtime proxy; no DROID bytes acquired |
+| MLX / PI family | Authorized next phase targets π₀.₅ compatibility/training on M5 Pro; not implemented or measured |
 
-## Pretrained object evidence
-
-```bash
-uv run --locked python -m scripts.fetch_model
-# Choose an episode ID printed by demo or import:
-uv run --locked python -m robo perceive EPISODE_ID --sample-every-s 0.5 --max-frames 600
-```
-
-The fetcher pins the source commit, license and SHA256 of every model file. Inference runs offline, decodes one frame at a time, and caps sampled frames. The model is lazy loaded by the CLI, outside HTTP requests. Reopen an episode to inspect evidence-linked boxes and scores. We exercised this backend on the illustrated fixtures; its object guesses can be wrong. Scores are uncalibrated and do not establish contact, grasping or task success. See [model provenance](docs/models.md).
-
-## Bring local robot data
-
-```bash
-uv run --locked python -m robo --store data/local/pilot import path/to/source.json
-uv run --locked python -m robo --store data/local/pilot suggest EPISODE_ID
-uv run --locked python -m robo --store data/local/pilot serve
-```
-
-[Source schema and example](docs/data-contract.md) · [DROID acquisition record](docs/dataset-card.md). DROID acquisition was blocked by the runtime proxy; **no DROID episodes were acquired**. The documented 100-episode subset is a next pilot, subject to the byte budget, provenance and timing checks. Video-only sources remain useful and do not acquire invented robot states.
-
-```bash
-uv run --locked python -m robo curate --count 4 --policy prioritized --output artifacts/selection.json
-uv run --locked python -m robo curate --count 4 --policy random --seed 7 --output artifacts/random.json
-uv run --locked python -m robo export examples/export-selection.json artifacts/dataset-v1
-uv run --locked python -m robo validate-export artifacts/dataset-v1
-uv run --locked python -m robo evaluate examples/synthetic-evaluation.json artifacts/evaluation.json
-```
-
-Edit the export example with your accepted episode/revision IDs. A curation selection schedules review; it does not approve training annotations. `validate-export` exercises the actual JSONL/Parquet consumer. It does not train a policy.
+The constant-rate review proxy is deliberately separate from raw observations. Its manifest maps every display frame to the original source frame, integer PTS and source time. Sensor plots use a zero-anchored display grid with nearest samples and blank gaps, while original streams remain intact. Temporal exports use explicit review-grid intervals and include the measured source frames bracketing each boundary. The default proxy retains all source frames up to 60 fps; an explicit coarser rate reports omitted frames. The grid is not a lossless representation of arbitrary source timestamps. [Data contract](docs/data-contract.md) · [Dataset card](docs/dataset-card.md).
 
 ## Verify
 
 ```bash
-uv run --locked python scripts/check_environment.py
 uv run --locked pytest -q
 uv run --locked ruff check .
 uv run --locked ruff format --check .
 npm ci --cache .cache/npm
 npm run check:web
 npm run format:check
-PLAYWRIGHT_BROWSERS_PATH=.cache/playwright npx playwright install --with-deps chromium ffmpeg
-npm run test:e2e
+# Uses a disposable database/session; no persistent API credential:
+uv run --locked python -m scripts.labelstudio_smoke --browser
 ```
 
-Browser tests use a disposable collection and record video. On the saved cloud environment, system Chromium/FFmpeg are available; [development notes](docs/development.md) describe reusing them. Optional model tests skip when weights are absent; fetch the pinned model to run them. CI fetches the model and exercises the same smoke test.
+The native smoke test uses installed system Chromium by default. Set `CHROMIUM_PATH` for another installation; CI uses Chrome for H.264. It disables telemetry and blocks non-local browser requests. Legacy browser regression tests remain under `npm run test:e2e`; see [development notes](docs/development.md) for the locked Playwright recording prerequisite.
 
-## Why this design
-
-One Python process and SQLite are sufficient for a small pilot. File snapshots separate immutable processing from transactional human decisions. The browser uses native JavaScript and CSS, served directly by FastAPI: no frontend build service or client framework is needed for this single editor. This deliberately departs from the proposed React/TypeScript stack; browser behavior tests and formatting checks cover the shipped interactions, while static TypeScript guarantees are absent.
-
-The first learned detector is small enough to exercise in the CPU executor and download reproducibly. It provides object evidence alongside a transparent temporal baseline, leaving human semantic decisions visible. [Architecture and tradeoffs](docs/architecture.md) explain the boundaries; [hardware choice](docs/models.md#hardware-choice) recommends the RTX 3060 workstation for a future CUDA perception extension without claiming that this CPU backend uses its VRAM.
-
-The research question remains **accepted, correct annotations per human hour**. No time savings, throughput improvement, inter-reviewer result, real robot quality benchmark or improved policy performance is claimed. This is independent work and does not describe Physical Intelligence's internal systems.
+[Verification and limits](docs/results.md) · [Original study protocol](docs/evaluation.md) · [Model provenance](docs/models.md). No human time reduction, real-data quality improvement, policy performance or Apple training result is claimed. This project is independent of Physical Intelligence.

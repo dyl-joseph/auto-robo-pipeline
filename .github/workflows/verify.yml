@@ -34,11 +34,22 @@ jobs:
       - run: npm run test:e2e
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
+      - run: uv run --locked python -m scripts.labelstudio_smoke --sync-contract
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+      - run: uv run --locked python -m scripts.labelstudio_smoke --browser
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          LS_TASK_LOADING_CONTRACT: "1"
+          LS_CPU_RATE: "6"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: browser-evidence
           path: |
             artifacts/browser-tests
+            artifacts/labelstudio-*.json
+            artifacts/labelstudio-failure*
+            artifacts/labelstudio-sync-*.png
             docs/evidence
           retention-days: 14

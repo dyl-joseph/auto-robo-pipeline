@@ -4,10 +4,15 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 
 | Evidence | Observed outcome |
 | --- | --- |
-| Python behavior tests | 35 passed, including optional pretrained model smoke test with downloaded pinned weights |
-| Desktop Chromium | Import fixture → playback/seek → candidates → correction → save → stale-tab conflict → accept → download export → edit/reopen passed |
-| Browser race/provenance/timing regressions | Delayed out-of-order loads, edits during load, repeated saves, navigation during save, restored origins and >30s playback timing passed |
-| Mobile Chromium, 390×844 | Manual condition, segment creation, responsive layout and no horizontal overflow passed |
+| Python behavior tests | 47 passed, including twelve native bridge cases and optional pretrained model smoke with downloaded pinned weights |
+| Native Label Studio 1.23.2 + SDK 2.1.2 | Actual project/storage/task/prediction import, annotation correction and native JSON export passed in a disposable authenticated application |
+| Native browser review | H.264 playback, two synchronized sensor plots, sensor-to-video seeking, temporal end-frame edit, submit, persisted API reread and reload passed without script errors |
+| Native task loading regression | Controlled detail-before-list responses reproduce the pinned cold-link bug; native table entry recovers prediction review, correction, submit, reload and SDK export under 6× browser CPU throttling |
+| Native sync regression | Official time-formatted CSV, numeric JSON and resized themed view seek correctly; two pinned upstream Collapse initialization failures reproduced as controls |
+| Native temporal export | Source frames 5/6 deliberately removed; native frames 1–6 export to generated review interval [0, 0.5), with end-boundary measured-source bracket [0.333333…, 0.583333…) and width 0.25 s |
+| Legacy desktop Chromium | Import fixture → playback/seek → candidates → correction → save → stale-tab conflict → accept → download export → edit/reopen passed |
+| Legacy browser race/provenance/timing regressions | Delayed out-of-order loads, edits during load, repeated saves, navigation during save, restored origins and >30s playback timing passed |
+| Legacy mobile Chromium, 390×844 | Manual condition, segment creation, responsive layout and no horizontal overflow passed |
 | Dependency readiness | 12 H.264 frames decoded, Parquet round-trip, FastAPI request passed |
 | Code checks | Ruff lint/format, browser JavaScript syntax, Prettier check |
 | Export consumer | JSONL/Parquet equality, file/semantic/version hashes, latest acceptance and split leakage checks tested |
@@ -16,7 +21,7 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 | Human time savings, agreement and error recall | Unmeasured; automation timings and fixture metrics do not establish these |
 | RTX 3060 / M5 Pro performance | Unmeasured; neither machine accessed |
 
-The browser evidence was recorded with automated actions and synthetic media. The notes in the audit panel explicitly identify automation. Playback and seek use actual H.264 video; a byte-range API test checks seek support. [Synchronized workspace](evidence/synchronized-review.png), [optional object evidence](evidence/review-workspace.png), [export screenshot](evidence/dataset-export.png), [mobile screenshot](evidence/mobile-review.png), [walkthrough recording](evidence/review-walkthrough.webm).
+The browser evidence uses automated actions and synthetic media. The notes identify automation. The current primary application is [native Label Studio](evidence/labelstudio-native.png), with a [recorded temporal correction](evidence/labelstudio-walkthrough.webm). [Desktop screenshot](evidence/labelstudio-native-desktop.png), [machine-readable review evidence](evidence/native-review-verification.json) and [sync regression observations](evidence/native-sync-contract.json) accompany the current native path. Earlier custom-editor screenshots and recording are historical prototype evidence. Native approval/timing orchestration remains open; passing the prototype's stale-tab and active-time tests does not establish equivalent behavior in the new integration.
 
 ## Reproduce the evaluation machinery
 
@@ -37,4 +42,4 @@ Temporal matches maximize cardinality and then total IoU within each episode and
 
 ## Remaining acceptance gates
 
-The M1–M4 engineering path and M5 software harness run. M5's research gate remains open: real public episodes, independent reference reviewers, counterbalanced timing, confidence intervals for quality preservation, and evidence that prioritization finds real errors. Learned action recognition, object masks/identities, near-duplicate embeddings, multi-camera adapters, and downstream policy training are not implemented. These are visible scope limits rather than implied results.
+The original M1–M4 prototype and M5 software harness run. The ecosystem migration now verifies native review mechanics and trusted draft snapshots. Native approval, active-time measurement, queue integration and actual LeRobot consumption remain open. M5's research gate also remains open: real public episodes, independent reference reviewers, counterbalanced timing, confidence intervals for quality preservation, and evidence that prioritization finds real errors. Learned action recognition, object masks/identities, near-duplicate embeddings, multi-camera adapters and downstream policy training are not implemented.
