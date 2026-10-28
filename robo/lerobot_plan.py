@@ -54,12 +54,16 @@ def previous_samples(times: list[float], grid: np.ndarray, tolerance: float, nam
     return indices, ages
 
 
-def plan_episode(record: dict, schema: TrainingSchema) -> dict:
-    episode, annotation = record["episode"], record["annotation"]
-    if annotation["status"] != "accepted":
-        raise ValueError("only an explicitly accepted version can be converted")
+def plan_inputs(episode: dict, schema: TrainingSchema) -> dict:
+    """Check causal alignment and feature mapping without approving or exporting labels."""
+    if (
+        episode.get("video_timing") == "inferred_nominal_fps"
+        and abs(episode["original_pts_s"][0]) > 1e-6
+    ):
+        raise ValueError(
+            "derived video starts after clock zero; resolve its origin before training"
+        )
     duration = episode["duration_s"]
-    validate_segments(annotation["segments"], duration)
     if not math.isfinite(duration) or not 0 < duration <= 300:
         raise ValueError("training conversion supports episodes up to 300 seconds")
     grid = np.arange(math.ceil(duration * schema.fps - 1e-9), dtype=np.float64) / schema.fps
@@ -102,16 +106,10 @@ def plan_episode(record: dict, schema: TrainingSchema) -> dict:
             features[key] = values.astype(np.float32)
         if not np.isfinite(features[key]).all():
             raise ValueError("source values cannot be represented as finite float32")
-    # A grid point in an unlabeled interval is explicitly unknown, never success.
-    labels = np.full(len(grid), LABELS.index("unknown"), dtype=np.int64)
-    for segment in annotation["segments"]:
-        mask = (grid >= segment["start_s"]) & (grid < segment["end_s"])
-        labels[mask] = LABELS.index(segment["label"])
     return {
         "grid": grid,
         "video_indices": video_indices,
         "features": features,
-        "labels": labels,
         "alignment": {
             "source_video_timing": episode.get("video_timing", "source_pts"),
             "timestamp_authority": episode.get("timestamp_authority", "source video PTS"),
@@ -126,3 +124,18 @@ def plan_episode(record: dict, schema: TrainingSchema) -> dict:
             "streams": alignment,
         },
     }
+
+
+def plan_episode(record: dict, schema: TrainingSchema) -> dict:
+    episode, annotation = record["episode"], record["annotation"]
+    if annotation["status"] != "accepted":
+        raise ValueError("only an explicitly accepted version can be converted")
+    validate_segments(annotation["segments"], episode["duration_s"])
+    plan = plan_inputs(episode, schema)
+    grid = plan["grid"]
+    # A grid point in an unlabeled interval is explicitly unknown, never success.
+    labels = np.full(len(grid), LABELS.index("unknown"), dtype=np.int64)
+    for segment in annotation["segments"]:
+        mask = (grid >= segment["start_s"]) & (grid < segment["end_s"])
+        labels[mask] = LABELS.index(segment["label"])
+    return {**plan, "labels": labels}

@@ -156,12 +156,14 @@ jobs:
       - run: uv run --locked python -m scripts.labelstudio_smoke --batch --source data/local/droid-converted/source.json
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
+      - run: uv run --locked python -m scripts.messy_droid data/local/droid-converted/source.json artifacts/messy-droid
       # Verification metadata only. No dataset bytes, video, database or session upload.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: droid-verification-metadata
           path: |
+            artifacts/messy-droid/report.json
             artifacts/droid-lerobot.json
             artifacts/droid-browser.json
             artifacts/batch-workflow.json

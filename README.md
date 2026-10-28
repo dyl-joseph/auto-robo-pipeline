@@ -56,6 +56,8 @@ flowchart LR
 
 The constant-rate review proxy is deliberately separate from raw observations. Its manifest maps every display frame to the source frame, integer PTS and source time. Sensor plots use a zero-anchored display grid with nearest samples and blank gaps, while original streams remain intact. Temporal exports include source frames bracketing each boundary and identify inferred clocks. The default proxy retains all source frames up to 60 fps; an explicit coarser rate reports omitted frames. The grid is not a lossless representation of arbitrary source timestamps. [Data contract](docs/data-contract.md) · [Dataset card](docs/dataset-card.md).
 
+The [controlled DROID benchmark](docs/messy-droid.md) tests row ordering, duplicates, clock offsets, missing samples and damaged media against an untouched reference. Its evidence separates complete repairs from review requests and rejected inputs.
+
 ## Training dataset
 
 The [LeRobot guide](docs/lerobot.md) provides the isolated locked runtime, explicit feature schema and conversion command. An accepted version becomes a local v3 dataset with original PTS/sample provenance and one selected split. CI loads the native review fixture through the official loader and includes a bounded [DROID gate](docs/droid.md). The real-data test compares every loaded state/action vector with decoded RLDS values. The [MLX adapter](docs/mlx.md) adds PI05 action-expert training and checkpoint resume, tested against small official models. Full pretrained training is still pending.

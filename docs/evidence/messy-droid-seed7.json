@@ -1,0 +1,38 @@
+{
+  "evidence_kind": "synthetic perturbations of one real DROID episode",
+  "seed": 7,
+  "source_sha256": {
+    "rlds-episode.json": "78f086b532552d2620d3ee0439f7d97f69e0c1c10ec94a21adb55e6c903f60f1",
+    "source.json": "695bd66e6488248e12f001084e52a8952891d0f0321432a83730cf17b3e33087",
+    "training-schema.json": "cd7efb808c79303e95b3e6712adf164c92be7df7471e62a1e2eae5ad17b69c0a",
+    "video.mp4": "bbe0ad2c940011f1f39501d778d3c6521c059e97dda5de9db9a0755f8679bf27"
+  },
+  "source_unchanged": true,
+  "input_unchanged": true,
+  "deterministic_rerun": true,
+  "input_inventory_hash": "1d88c79ab23c01e4a1df5aa994a72ffd58ad746de548c8ade9a7d39aa26e765d",
+  "metrics": {
+    "automatic_approvals": 0,
+    "cases": 16,
+    "clean_controls": 2,
+    "clean_false_positives": 0,
+    "correct_classifications": 16,
+    "corrupted_cases": 14,
+    "data_review_requests": 10,
+    "detected_corrupted_cases": 14,
+    "fully_repaired": 4,
+    "human_active_seconds": null,
+    "label_review_requests": 9,
+    "lost_or_rejected_sample_rows": 3344,
+    "lost_or_rejected_video_frames": 835,
+    "missing_frames_in_prepared_episodes": 2,
+    "missing_sample_rows_in_prepared_episodes": 12,
+    "rejected": 7,
+    "rejected_reference_frames": 833,
+    "rejected_reference_sample_rows": 3332,
+    "retained_sample_rows": 4272,
+    "retained_video_frames": 1069,
+    "review_required": 3,
+    "silent_corruption_cases": 0
+  }
+}

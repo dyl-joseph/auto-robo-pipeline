@@ -55,13 +55,13 @@ def test_failed_stage_resumes_without_reimport_or_duplicate_history(fixture, mon
         pipeline, "suggest", lambda *args: (_ for _ in ()).throw(OSError("interrupted"))
     )
     failed = run_batch(inbox, store)
-    assert failed["items"][0]["completed_stages"] == ["import"]
+    assert failed["items"][0]["completed_stages"] == ["normalize", "import"]
     assert failed["items"][0]["stage"] == "suggest"
     assert len(store.episodes()) == 1
     monkeypatch.setattr(pipeline, "suggest", original)
     resumed = run_batch(inbox, store)
     assert resumed["batch_id"] == failed["batch_id"]
-    assert resumed["items"][0]["completed_stages"] == ["import", "suggest", "prepare"]
+    assert resumed["items"][0]["completed_stages"] == ["normalize", "import", "suggest", "prepare"]
     assert resumed["metrics"]["failed_records"] == 0
     assert len(store.episodes()) == 1
     assert store.history(store.episodes()[0]["id"]) == []
