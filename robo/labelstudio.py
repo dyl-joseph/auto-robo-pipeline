@@ -335,8 +335,18 @@ def bind_task(bundle: dict, project_id: int, task_id: int) -> dict:
         **bundle["trusted_origin"],
         "project_id": project_id,
         "task_id": task_id,
-        "task_data_hash": digest(bundle["task"]["data"]),
+        "task_data_hash": task_data_hash(bundle["task"]["data"], bundle["trusted_origin"]),
     }
+
+
+QUEUE_FIELDS = ["review_priority", "review_reason"]
+
+
+def task_data_hash(data: dict, binding: dict) -> str:
+    mutable = binding.get("mutable_task_fields", [])
+    if mutable and mutable != QUEUE_FIELDS:
+        raise ValueError("Only queue priority and reason may change outside the source binding")
+    return digest({key: value for key, value in data.items() if key not in mutable})
 
 
 def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) -> dict:
@@ -345,7 +355,7 @@ def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) ->
     if (
         task["id"] != binding["task_id"]
         or task["project"] != binding["project_id"]
-        or digest(task["data"]) != binding["task_data_hash"]
+        or task_data_hash(task["data"], binding) != binding["task_data_hash"]
         or episode["content_hash"] != binding["episode_hash"]
         or digest(proxy) != binding["proxy_hash"]
         or file_hash(store.root / episode["media"]) != episode["video_sha256"]

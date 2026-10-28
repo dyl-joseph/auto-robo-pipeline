@@ -15,10 +15,13 @@ from robo.store import Conflict
 
 
 @pytest.fixture
-def native(episode):
+def native(episode, request):
     store, episode = episode
     suggest(store, episode["id"])
     bundle = task_bundle(store, episode["id"])
+    if getattr(request, "param", False):
+        bundle["trusted_origin"]["mutable_task_fields"] = ["review_priority", "review_reason"]
+        bundle["task"]["data"].update(review_priority=1, review_reason="coverage audit")
     timestamp = "2026-01-01T00:00:00Z"
     annotation = {
         "id": 3,
@@ -345,3 +348,24 @@ def test_later_active_machine_run_does_not_rebind_accepted_provenance(native, tm
     record = validate_export(tmp_path / "pinned")[0]
     assert record["annotation"]["suggestion_run"] == original["suggestion_run"]
     assert record["suggestion_artifact_hash"] != run["artifact_hash"]
+
+
+@pytest.mark.parametrize("native", [True], indirect=True)
+def test_queue_metadata_can_change_but_source_data_remains_bound(native, tmp_path):
+    bridge, store, episode, _, task, _ = native
+    refresh(native)
+    decide(native)
+    task["data"]["review_priority"] = 17
+    task["data"]["review_reason"] = "needs adjudication"
+    bridge.export(selection(native), tmp_path / "queue-update")
+    task["data"]["video"] = "/different-video.mp4"
+    with pytest.raises(ValueError, match="trusted source"):
+        bridge.export(selection(native), tmp_path / "changed-source")
+    assert store.latest(episode["id"])["status"] == "accepted"
+
+
+def test_queue_binding_cannot_exclude_source_fields():
+    from robo.labelstudio import task_data_hash
+
+    with pytest.raises(ValueError, match="Only queue"):
+        task_data_hash({"video": "original"}, {"mutable_task_fields": ["video"]})

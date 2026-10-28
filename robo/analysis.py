@@ -148,12 +148,17 @@ def queue(store: Store, diverse: bool = True) -> list[dict]:
         warnings = run["warnings"] if run else episode["validation"]["warnings"]
         low = bool(run and any(s["score"] < 0.5 for s in run["segments"]))
         reasons = list(warnings) + (["weak_motion_evidence"] if low else [])
+        uncertain = revision["status"] == "needs_adjudication" or "uncertain" in revision.get(
+            "quality_flags", []
+        )
+        if uncertain:
+            reasons.append("needs_adjudication")
         if "recovery" in revision.get("quality_flags", []):
             reasons.append("preserve_recovery_coverage")
         duplicate = hashes[episode["video_sha256"]]
         if len(duplicate) > 1:
             reasons.append("exact_duplicate_group")
-        score = len(warnings) * 2 + low * 2 + (revision["status"] == "needs_adjudication") * 5
+        score = len(warnings) * 2 + low * 2 + uncertain * 5
         items.append(
             {
                 "id": episode["id"],
