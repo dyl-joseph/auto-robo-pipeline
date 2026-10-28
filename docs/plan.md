@@ -2,7 +2,7 @@
 
 The goal is to turn robot recordings into structured datasets with automated preparation and a small, explicit review queue. The current implementation handles local video and declared robot streams. It repairs order and exact duplicates, detects several kinds of missing or ambiguous data, proposes motion segments and exports approved annotations through LeRobot.
 
-The implemented slices and their evidence are listed below. The controlled DROID corruption benchmark is the final pipeline feature; there is no additional feature roadmap in this release.
+The implemented slices and their evidence are listed below. The next approved milestone is DROID → automatic text-labeled temporal segments → independent ground-truth comparison → review/export. Work starts with bounded local RLDS intake and semantic reference/evaluation contracts, followed by a robot-state baseline and a small video-language adapter. Broader messy-data recovery comes after that comparison.
 
 | Work | Evidence |
 | --- | --- |

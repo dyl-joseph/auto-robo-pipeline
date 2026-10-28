@@ -16,6 +16,18 @@ from robo.core import atomic_json, file_hash
 from robo.droid import CAMERAS, CLOCK, FILES, FPS, SHARD, source_from_steps, training_schema
 
 
+def bounded_options():
+    import tensorflow as tf
+
+    options = tf.data.Options()
+    options.deterministic = True
+    options.autotune.enabled = False
+    options.threading.private_threadpool_size = 1
+    options.threading.max_intra_op_parallelism = 1
+    options.experimental_optimization.inject_prefetch = False
+    return options
+
+
 def verify_inputs(source: Path):
     for name, expected in FILES.items():
         path = source / name
@@ -48,14 +60,44 @@ def convert(source: Path, output: Path, camera: str = CAMERAS[0]) -> dict:
     tf.config.threading.set_intra_op_parallelism_threads(1)
     tf.config.threading.set_inter_op_parallelism_threads(1)
     feature = tfds.features.FeatureConnector.from_config(str(source))
-    iterator = iter(tf.data.TFRecordDataset([str(source / SHARD)], num_parallel_reads=1))
+    iterator = iter(
+        tf.data.TFRecordDataset([str(source / SHARD)], num_parallel_reads=1).with_options(
+            bounded_options()
+        )
+    )
     record = next(iterator)
     if next(iterator, None) is not None:
         raise ValueError("pinned pilot shard must contain exactly one episode")
     episode = feature.deserialize_example(record)
+    return write_episode(episode, output, camera, verify=lambda: verify_inputs(source))
+
+
+def write_episode(
+    episode,
+    output: Path,
+    camera: str,
+    *,
+    origin=None,
+    max_steps=4500,
+    verify=lambda: None,
+    staging_parent=None,
+):
+    """Publish one complete derivative; callers verify their input snapshot before publication."""
+    import tensorflow as tf
+    import tensorflow_datasets as tfds
+
+    if output.exists():
+        raise ValueError("choose an unused output directory; derivatives are immutable")
+    if camera not in CAMERAS or not 2 <= max_steps <= FPS * 300:
+        raise ValueError("invalid camera or step bound")
+    step_dataset = episode["steps"].with_options(bounded_options())
+    if not 2 <= int(step_dataset.cardinality().numpy()) <= max_steps:
+        raise ValueError(
+            f"DROID episode exceeds step bound or has fewer than two steps: {max_steps}"
+        )
     metadata = {k: v.numpy().decode("utf-8") for k, v in episode["episode_metadata"].items()}
     output.parent.mkdir(parents=True, exist_ok=True)
-    temporary = Path(tempfile.mkdtemp(prefix=".droid-", dir=output.parent))
+    temporary = Path(tempfile.mkdtemp(prefix=".droid-", dir=staging_parent or output.parent))
     process = None
     try:
         process = subprocess.Popen(
@@ -89,9 +131,9 @@ def convert(source: Path, output: Path, camera: str = CAMERAS[0]) -> dict:
             stdin=subprocess.PIPE,
         )
         steps, image_hashes = [], []
-        for step in tfds.as_numpy(episode["steps"]):
-            if len(steps) >= FPS * 300:
-                raise ValueError("DROID pilot exceeds 300 seconds at nominal FPS")
+        for step in tfds.as_numpy(step_dataset):
+            if len(steps) >= max_steps:
+                raise ValueError("DROID episode exceeds configured step bound")
             hashes = {}
             for key in CAMERAS:
                 frame = step["observation"][key]
@@ -106,7 +148,7 @@ def convert(source: Path, output: Path, camera: str = CAMERAS[0]) -> dict:
         process.stdin.close()
         if process.wait(timeout=60):
             raise ValueError("DROID video encoding failed")
-        source_manifest = source_from_steps(steps, metadata, camera)
+        source_manifest = source_from_steps(steps, metadata, camera, origin)
         raw = {"episode_metadata": metadata, "steps": steps, "image_rgb_sha256": image_hashes}
         atomic_json(temporary / "rlds-episode.json", raw)
         source_manifest["provenance"] += (
@@ -152,7 +194,22 @@ def convert(source: Path, output: Path, camera: str = CAMERAS[0]) -> dict:
             "files": {p.name: file_hash(p) for p in sorted(temporary.iterdir())},
             "human_labels_validated": False,
         }
-        verify_inputs(source)
+        if origin is not None:
+            evidence.update(
+                evidence_kind=(
+                    "generated_droid_rlds_fixture"
+                    if origin.generated_fixture
+                    else "local_droid_rlds_decode"
+                ),
+                source_files={
+                    origin.shard: {"sha256": origin.shard_sha256},
+                    "features.json": {"sha256": origin.features_sha256},
+                    "dataset_info.json": {"sha256": origin.dataset_info_sha256},
+                },
+                record_index=origin.record_index,
+                origin=origin.model_dump(),
+            )
+        verify()
         atomic_json(temporary / "conversion.json", evidence)
         os.rename(temporary, output)
         return evidence
