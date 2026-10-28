@@ -12,6 +12,7 @@ The implemented slices and their evidence are listed below. The next approved mi
 | Local RLDS intake | Generated multi-episode/shard tests, hash-checked resume, partial-source reports and the unchanged real pilot |
 | Semantic evaluation contract | Source-frame segments, separate predictions/references, split and independence checks, and generated evaluator tests; no real accuracy result yet |
 | Robot-state baseline | Coarse text-labeled candidates, ten generated tests and execution on all 119 real pilot frames; semantic accuracy remains unmeasured |
+| Local Qwen adapter | Official tiny-model multiframe execution, pinned-asset checks and strict output contracts; full pretrained inference and hardware fit remain untested |
 | LeRobot conversion | Every loaded DROID state/action vector compared with the source; official loader and DataLoader tested |
 | MLX compatibility | PI05 action-expert loss, gradients, updates and resume compared with small official models on MPS and MLX Metal |
 | Full PI05 inference | Pinned pretrained checkpoint, generated raw observations, official preprocessing and postprocessing, and complete action chunks verified on the M5 Pro |
