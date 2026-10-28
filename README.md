@@ -63,6 +63,18 @@ The comparison must score predictions before a person corrects them. Use indepen
 
 Report per-class precision, recall and temporal segment F1, boundary error, missed labels and the amount of human review requested. Show corrected results separately so they do not inflate autonomous accuracy. The existing [evaluator](docs/results.md#evaluate-supplied-review-artifacts) has fixture tests for matching and metrics, but no held-out semantic-labeling result has been measured. DROID's language instructions and the automated review fixtures are not ground-truth temporal annotations.
 
+## Future work informed by Physical Intelligence
+
+PI's [π₀.₅ research](https://www.pi.website/blog/pi05) uses semantic subtask instructions, high-level prediction of the next subtask, and co-training across robot actions and multimodal data. The public [openpi release](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/README.md) supports the π₀.₅ flow-matching head for training and inference; reproducing the full research recipe would require additional work. These sources suggest three future priorities for this project:
+
+1. **Semantic subtask text and boundaries first.** Propose observable descriptions for each temporal segment, with uncertain cases sent to review. PI's [π₀.₇ paper, §V-A](https://www.pi.website/download/pi07.pdf#page=4), uses detailed subtask text on segments. Its [Appendix C](https://www.pi.website/download/pi07.pdf#page=22) reports that temporal segmentation quality strongly affects visual-subgoal quality, reinforcing the need to evaluate boundaries alongside text.
+2. **Validated quality and mistake metadata next.** [π₀.₇ §V-C–E](https://www.pi.website/download/pi07.pdf#page=5) uses episode length in timesteps as speed metadata, human annotations of quality (1–5) and mistake segments, and `joint`/`ee` control labels. We could test comparable annotations against a human rubric before using them for training. Control labels must describe the actual action representation; adding a label does not convert joint actions into end-effector actions.
+3. **Visual subgoals as later research.** [π₀.₇ §V-B](https://www.pi.website/download/pi07.pdf#page=5) uses segment-end frames as training targets and a BAGEL-initialized world model to generate subgoals at inference. Exploring this would require a separate model and evaluation; it is not a requirement for the standard [π₀.₅ DROID configuration](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/src/openpi/training/config.py).
+
+SAM, Grounding DINO and Qwen are optional tools we might evaluate, not tools attributed to PI's published annotation process. Masks and tracking would be aids to labeling, justified only if they improve the measured result.
+
+The primary benchmark remains uncorrected predictions against independent, held-out ground truth. A separate future policy ablation would compare original versus enriched annotations with the same data splits, training recipe and compute budget, then measure held-out task performance. Better annotation scores alone would not establish better robot control.
+
 ## Next phase: broader messy-data recovery
 
 The existing [controlled benchmark](docs/messy-droid.md) is a limited starting point: 16 variants of one real episode, with four repaired, three flagged for data review, seven rejected and two clean controls. It found no silent corruption in those cases. Those results test structural recovery, not semantic-label accuracy. Broader recovery from naturally messy recordings is the next phase after the autonomous-labeling evaluation. Human time savings and performance on arbitrary messy recordings remain unmeasured.
