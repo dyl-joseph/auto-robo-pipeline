@@ -1,6 +1,8 @@
 # Robot episode curation
 
-Turn local robot recordings into reviewed datasets for LeRobot. The pipeline checks video and robot streams, repairs sample order and exact duplicates, proposes motion segments, and sends uncertain or incomplete episodes to Label Studio. An explicit approval controls which annotations enter an export.
+The goal is autonomous robot-episode labeling with minimal human correction. The next milestone is to compare the pipeline's unedited semantic predictions directly with independently labeled, held-out ground truth. Broader messy-data recovery comes after that labeling benchmark.
+
+The current implementation prepares recordings for review and exports accepted annotations to LeRobot. It checks video and robot streams, repairs sample order and exact duplicates, proposes coarse motion segments, and sends uncertain or incomplete episodes to Label Studio. An explicit approval controls which annotations enter an export. A learned semantic labeler and a held-out evaluation of its predictions are still missing.
 
 ![A real DROID episode in Label Studio](docs/evidence/droid-batch-review.png)
 
@@ -53,7 +55,17 @@ flowchart LR
 
 The importer keeps original video and numeric values. Review uses a separate constant-rate video with a frame map back to the source. Training conversion checks an explicit state/action schema and uses causal samples within declared tolerances. Missing values are not filled in.
 
-Automation prepares and prioritizes work. Motion suggestions are coarse, uncertainty scores are heuristic, and semantic labels still require review. The [controlled benchmark](docs/messy-droid.md) covers 16 variants of one real episode: four repaired, three flagged for data review, seven rejected and two clean controls. It found no silent corruption in those cases. Human time savings and performance on arbitrary messy recordings remain unmeasured.
+Automation prepares and prioritizes work. Motion suggestions and uncertainty scores are heuristic; semantic labels still require review.
+
+## Evaluate autonomous labels
+
+The comparison must score predictions before a person corrects them. Use independent reference labels with a fixed taxonomy and boundary rules, and keep related sessions and near-duplicate episodes in the same split. Hold test labels out of training, prompt changes and threshold selection.
+
+Report per-class precision, recall and temporal segment F1, boundary error, missed labels and the amount of human review requested. Show corrected results separately so they do not inflate autonomous accuracy. The existing [evaluator](docs/results.md#evaluate-supplied-review-artifacts) has fixture tests for matching and metrics, but no held-out semantic-labeling result has been measured. DROID's language instructions and the automated review fixtures are not ground-truth temporal annotations.
+
+## Next phase: broader messy-data recovery
+
+The existing [controlled benchmark](docs/messy-droid.md) is a limited starting point: 16 variants of one real episode, with four repaired, three flagged for data review, seven rejected and two clean controls. It found no silent corruption in those cases. Those results test structural recovery, not semantic-label accuracy. Broader recovery from naturally messy recordings is the next phase after the autonomous-labeling evaluation. Human time savings and performance on arbitrary messy recordings remain unmeasured.
 
 ## Training and MLX
 
