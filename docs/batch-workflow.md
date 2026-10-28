@@ -8,7 +8,7 @@ The screenshot shows an automated integration test, not human review. The video 
 
 ## Start with local episodes
 
-Each episode needs a `source.json` or `*.source.json` manifest following the [data contract](data-contract.md). Video paths are relative to their manifests. An inbox can contain several episode directories; keep the pipeline store outside it.
+Each episode needs a `source.json` or `*.source.json` manifest following the [data contract](data-contract.md). Video paths are relative to their manifests. Each numeric stream must include an explicit `offset_s` and `clock_evidence`. Intake sorts paired rows and removes exact duplicates; conflicting values and unknown clocks require corrected input. An inbox can contain several episode directories; keep the pipeline store outside it.
 
 For the existing DROID sample, use `data/local/droid-converted` after following the [download/conversion steps](droid.md):
 
@@ -56,7 +56,7 @@ Export rechecks the native annotation before writing. Unreviewed, rejected or ch
 
 Reports count inputs, unique prepared episodes, duplicate records, failures by stage, pending reviews and locally approved episodes. They measure workload and recovery behavior, not human time savings or label accuracy. Priorities use validation warnings, explicit uncertainty and heuristic motion evidence; they are not calibrated probabilities.
 
-[Integration evidence](evidence/batch-workflow.json) uses real DROID values in four input records: two episode variants, one repeated record and one invalid manifest. It checks interrupted-import recovery, numeric sorting, opening tasks in the actual editor, changing priority after an uncertain annotation, and correction/approval/export. Reviewer actions are automated test fixtures. The final corruption benchmark separately measures repair and detection quality.
+[Integration evidence](evidence/batch-workflow.json) uses real DROID values in four input records: two episode variants, one repeated record and one invalid manifest. It checks interrupted-import recovery, numeric sorting, opening tasks in the actual editor, changing priority after an uncertain annotation, and correction/approval/export. Reviewer actions are automated test fixtures. The [controlled corruption benchmark](messy-droid.md) separately measures repair and detection quality.
 
 ## Before pretrained PI05 use
 
