@@ -1,0 +1,17 @@
+[project]
+name = "robo-droid-runtime"
+version = "0.1.0"
+description = "Isolated official TensorFlow Datasets decoder for one DROID sample"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "tensorflow-cpu==2.20.0; sys_platform == 'linux'",
+    "tensorflow==2.20.0; sys_platform != 'linux'",
+    "tensorflow-datasets==4.9.9",
+    "pydantic==2.14.1",
+    "numpy==2.2.6",
+]
+
+[tool.uv]
+package = false
+required-version = "==0.12.23"
+cache-dir = ".cache/uv"

@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -48,7 +49,8 @@ def probe(path: Path) -> dict:
             "v:0",
             "-show_frames",
             "-show_entries",
-            "stream=width,height,time_base,duration,start_time,codec_name:format=format_name:frame=pts,pts_time,duration_time,pkt_duration_time",
+            "stream=width,height,time_base,duration,duration_ts,start_time,codec_name:"
+            "format=format_name:frame=pts,pts_time,duration,pkt_duration,duration_time,pkt_duration_time",
             "-of",
             "json",
             str(path),
@@ -77,7 +79,18 @@ def probe(path: Path) -> dict:
             "duration_time", frames[-1].get("pkt_duration_time", np.median(np.diff(pts)))
         )
     )
-    duration = max(float(stream.get("duration", 0)), pts[-1] - pts[0] + tail)
+    # Decimal pts_time/duration_time are rounded by ffprobe (e.g. 1/15 second).
+    # Summing them can invent a 120th frame for a 119-frame CFR source.
+    base = Fraction(stream["time_base"])
+    tail_ticks = frames[-1].get("duration", frames[-1].get("pkt_duration"))
+    exact_tail = int(tail_ticks) * base if tail_ticks is not None else Fraction(str(tail))
+    span = (int(frames[-1]["pts"]) - int(frames[0]["pts"])) * base + exact_tail
+    stream_duration = (
+        int(stream["duration_ts"]) * base
+        if "duration_ts" in stream
+        else Fraction(stream.get("duration", "0"))
+    )
+    duration = float(max(stream_duration, span))
     if not np.isfinite(duration) or duration <= 0:
         raise ValueError("invalid video duration")
     return {
@@ -107,6 +120,8 @@ def import_episode(manifest: Path, store: Store) -> dict:
         raise ValueError("pilot video limit is 512 MiB; explicitly split larger recordings")
     media_hash = file_hash(video)
     body = source.model_dump(exclude={"video"})
+    if source.video_timing == "source_pts":
+        body.pop("video_timing")  # Preserve identities of previously imported video sources.
     content_hash = digest({**body, "video_sha256": media_hash})
     source_key = digest([source.release, source.source_id])
     episode_id = digest([source_key, content_hash])[:24]
@@ -150,6 +165,12 @@ def import_episode(manifest: Path, store: Store) -> dict:
         )
     modalities = {s.modality for s in source.streams}
     warnings = [f"missing_{m}" for m in ("state", "action", "sensor") if m not in modalities]
+    if source.video_timing == "inferred_nominal_fps":
+        warnings.append("inferred_video_timing")
+        media["timestamp_authority"] = (
+            "ffprobe PTS of a derived video; inferred from nominal step rate, "
+            "not measured capture timestamps or synchronization"
+        )
     if any(r["unmatched_frames"] for r in reports):
         warnings.append("unmatched_stream_samples")
     gaps = np.diff(times)
