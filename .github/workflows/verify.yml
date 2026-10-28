@@ -1,0 +1,44 @@
+name: Verify episode workflow
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: .cache/playwright
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: ./scripts/setup.sh
+      - run: uv run --locked python scripts/check_environment.py
+      - run: uv run --locked python -m scripts.fetch_model
+      - run: uv run --locked pytest -q
+      - run: uv run --locked ruff check . && uv run --locked ruff format --check .
+      - run: npm ci --cache .cache/npm
+      - run: npm run check:web && npm run format:check
+      - run: npx playwright install --with-deps chrome ffmpeg
+      - run: npm run test:e2e
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            artifacts/browser-tests
+            docs/evidence
+          retention-days: 14

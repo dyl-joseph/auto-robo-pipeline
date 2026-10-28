@@ -1,5 +1,9 @@
 # Build roadmap
 
+## Implementation status
+
+M1 import, M2 manual review/export, M3 cached motion plus optional pretrained object evidence, M4 deterministic curation, and M5 evaluation software are implemented in the draft. [Results and limitations](results.md) distinguish behavior checks from the outstanding real-data and human-study acceptance gates. The original milestones below remain the study roadmap; completion of software does not close M5's research gate.
+
 ## Objective
 
 Build a credible proof of work for visual data and annotation automation in robotics. Demonstrate engineering judgment through reliable multimodal alignment, useful draft annotations, efficient human review, explicit quality criteria, and reproducible dataset exports.
