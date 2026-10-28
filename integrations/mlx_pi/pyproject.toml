@@ -1,0 +1,29 @@
+[project]
+name = "robo-mlx-pi-runtime"
+version = "0.1.0"
+description = "MLX action-expert training with the official LeRobot PI05 encoder"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mlx[cpu]==0.32.4",
+    "lerobot[pi]==0.6.1",
+    "transformers==5.5.4",
+    "torch==2.11.0",
+    "torchvision==0.26.0",
+    "numpy==2.2.6",
+    "pydantic==2.14.1",
+    "pytest==9.2.0",
+]
+
+[tool.uv]
+package = false
+required-version = "==0.12.23"
+cache-dir = ".cache/uv"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
