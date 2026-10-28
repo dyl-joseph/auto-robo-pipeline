@@ -69,7 +69,9 @@ async function checkSync() {
       const plot = page
         .locator(".htx-timeseries-channel .new_brush .overlay")
         .first();
-      await plot.scrollIntoViewIfNeeded();
+      // A resize replaces D3's SVG. The trial resolves replacements and settles
+      // scrolling/layout before we measure the intended 70% seek position.
+      await plot.click({ trial: true });
       const box = await plot.boundingBox();
       await plot.click({
         position: { x: box.width * 0.7, y: box.height * 0.5 },

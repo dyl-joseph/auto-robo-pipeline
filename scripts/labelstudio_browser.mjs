@@ -90,7 +90,7 @@ async function review() {
   const chart = page
     .locator(".htx-timeseries-channel .new_brush .overlay")
     .first();
-  await chart.scrollIntoViewIfNeeded();
+  await chart.click({ trial: true });
   const box = await chart.boundingBox();
   await chart.click({ position: { x: box.width * 0.7, y: box.height * 0.5 } });
   await expect
