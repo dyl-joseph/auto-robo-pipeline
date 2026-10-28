@@ -158,6 +158,11 @@ jobs:
           ROBO_NATIVE_EXPORT_FIXTURE: artifacts/droid-native-fixture
       - run: uv sync --locked --project integrations/lerobot
       - run: uv run --locked --project integrations/lerobot python -m integrations.lerobot.verify_droid data/local/droid-converted artifacts/droid-native-fixture artifacts/droid-lerobot
+      - run: uv run --locked python -m scripts.labelstudio_smoke --semantic --source data/local/droid-converted/source.json
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          ROBO_SEMANTIC_EXPORT_FIXTURE: artifacts/semantic-native-fixture
+      - run: uv run --locked --project integrations/lerobot python -m integrations.lerobot.verify_semantic data/local/droid-converted artifacts/semantic-native-fixture artifacts/semantic-lerobot
       - run: uv run --locked python -m scripts.labelstudio_smoke --batch --source data/local/droid-converted/source.json
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
@@ -170,6 +175,8 @@ jobs:
           path: |
             artifacts/messy-droid/report.json
             artifacts/droid-lerobot.json
+            artifacts/semantic-native.json
+            artifacts/semantic-lerobot.json
             artifacts/droid-browser.json
             artifacts/droid-intake-real/verification.json
             artifacts/batch-workflow.json
