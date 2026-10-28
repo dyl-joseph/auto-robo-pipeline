@@ -1,0 +1,26 @@
+<View className="episode-review">
+  <Style>
+    .episode-review {
+      background: white; color: #222; padding: 24px;
+      font-family: Arial, sans-serif;
+    }
+    .episode-title, .episode-title * {
+      font-family: Georgia, serif; font-size: 30px;
+      font-weight: normal; margin-bottom: 24px;
+    }
+    .episode-note { color: #73736f; font-size: 12px; margin: 14px 0; }
+  </Style>
+  <View className="episode-title"><Text name="task" value="$task"/></View>
+  <View className="episode-note"><Text name="provenance" value="$provenance"/></View>
+  <Video name="video" value="$video" frameRate="__FPS__" sync="episode" height="300" timelineHeight="100"/>
+  <TimelineLabels name="subtask" toName="video">__LABELS__</TimelineLabels>
+  __SENSORS__
+  <Choices name="outcome" toName="video" choice="single">
+    <Choice value="unknown"/><Choice value="success"/><Choice value="failure"/>
+  </Choices>
+  <Choices name="quality" toName="video" choice="multiple">
+    <Choice value="recovery"/><Choice value="occluded"/><Choice value="uncertain"/>
+    <Choice value="corrupt"/><Choice value="incomplete"/>
+  </Choices>
+  <TextArea name="decision_note" toName="video" placeholder="Evidence, corrections, and uncertainty"/>
+</View>
