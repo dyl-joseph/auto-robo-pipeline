@@ -38,7 +38,7 @@ flowchart LR
     D --> F[Official SDK / native JSON export]
     F --> G[Authenticated refresh + immutable draft]
     G --> H[Explicit approval + fresh native check / split gates]
-    H -. next integration .-> I[LeRobot loader / training dataset]
+    H --> I[Official LeRobot v3 writer / loader + provenance]
 ```
 
 | Boundary | Current state |
@@ -48,11 +48,15 @@ flowchart LR
 | SDK bridge | Actual project/task/prediction import, correction, native JSON export and trusted task/source/proxy validation exercised |
 | Timing/approval | Explicit accept/reject with revision freshness, pinned native provenance and checked new exports. Native `lead_time` is retained; active human time stays null and is excluded from efficiency estimates |
 | Curation/evaluation | Transparent ranking, coverage and evaluation machinery from the prototype remain reusable; integration with Label Studio task scheduling is pending |
-| Training format | Existing project JSONL/Parquet consumer is tested; actual LeRobot round-trip is an open integration gate |
+| Training format | Official LeRobot 0.6.1 create/finalize/load and DataLoader roundtrip exercised on synthetic data, including the native accepted artifact; explicit schema, causal alignment and hashes |
 | Real data | DROID acquisition blocked by the prior runtime proxy; no DROID bytes acquired |
 | MLX / PI family | Authorized next phase targets π₀.₅ compatibility/training on M5 Pro; not implemented or measured |
 
 The constant-rate review proxy is deliberately separate from raw observations. Its manifest maps every display frame to the original source frame, integer PTS and source time. Sensor plots use a zero-anchored display grid with nearest samples and blank gaps, while original streams remain intact. Temporal exports use explicit review-grid intervals and include the measured source frames bracketing each boundary. The default proxy retains all source frames up to 60 fps; an explicit coarser rate reports omitted frames. The grid is not a lossless representation of arbitrary source timestamps. [Data contract](docs/data-contract.md) · [Dataset card](docs/dataset-card.md).
+
+## Training dataset
+
+The [LeRobot guide](docs/lerobot.md) provides the isolated locked runtime, explicit feature schema and conversion command. An accepted version becomes a local v3 dataset with original PTS/sample provenance and one selected split. CI loads the actual native review fixture through the official loader. This is dataset interoperability evidence; PI-family training and real-DROID validation remain separate gates.
 
 ## Verify
 
