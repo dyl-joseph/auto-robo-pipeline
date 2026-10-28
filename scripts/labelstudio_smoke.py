@@ -37,8 +37,8 @@ def run(directory: Path, real_source: Path | None = None):
     for key, value in values.items():
         os.environ[f"LABEL_STUDIO_{key}"] = value
         os.environ[key] = value
-    # The supported feature-flag surface disables Compare All in this single-task
-    # harness: 1.23.2 leaves its per-annotation sync manager uninitialized on mount.
+    # Compare All in 1.23.2 leaves the annotation sync manager uninitialized.
+    # Use the supported single-annotation mode for these tests.
     os.environ["fflag_fix_front_dev_3391_interactive_view_all"] = "false"
     import label_studio
 
@@ -140,7 +140,6 @@ def run(directory: Path, real_source: Path | None = None):
     bundle = task_bundle(store, episodes[0]["id"])
     if real:
         bundle["task"]["data"]["provenance"] += " · automated integration check; not human review"
-    # Local files are beneath the fixture's document root, not the filesystem root.
     for field in ("video",):
         bundle["task"]["data"][field] = bundle["task"]["data"][field].replace("?d=", "?d=robotics/")
     cookies = {name: value.value for name, value in browser.cookies.items()}

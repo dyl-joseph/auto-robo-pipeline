@@ -1,6 +1,6 @@
 # Real DROID pilot
 
-The published environment can download the official DROID debug subset. The pilot pins **one complete shard containing one 119-step episode**, plus its original feature/schema metadata. Dataset bytes and real-video screenshots stay in ignored local directories.
+The pilot uses one pinned shard from the official DROID debug subset. It contains one 119-step episode and comes with the original feature metadata. Dataset bytes stay in ignored local directories; one attributed review screenshot is included in the documentation.
 
 ## Acquire and decode
 
@@ -24,7 +24,7 @@ Use an unused conversion output directory. Acquisition reuses only files matchin
 | `features.json` | 18,665 | `4c556e2e38e179e41089e07cf54273b1540d67d3c78a420898370329813c9a25` |
 | `dataset_info.json` | 760 | `58646aa75fd054a0d8670edd676620267adb32550dc228545d70a3418abb1834` |
 
-The listing contained 31 shards totaling 2,192,595,669 bytes; shard 9 was the smallest. Its immutable GCS generation is `1710528094394407`. Total pinned payload is 9,560,772 bytes. This is a bounded connectivity/interoperability pilot, not a representative quality sample.
+The listing contained 31 shards totaling 2,192,595,669 bytes; shard 9 was the smallest. Its immutable GCS generation is `1710528094394407`. Total pinned payload is 9,560,772 bytes. This small sample tests acquisition and format compatibility. It is not representative of the full dataset.
 
 ## License and attribution
 
@@ -51,13 +51,13 @@ The original builder name is `r2d2_faceblur`, even though its bucket directory i
 
 The task is putting a cable in a storage box. The unmodified shard retains all imagery. The converter decodes and hashes all three camera streams, writes one explicitly selected camera as H.264 CRF18/yuv420p, and preserves every non-image field in `rlds-episode.json`. That numeric sidecar's hash is included in the source provenance. There is no crop or resize, but H.264 encoding is lossy. This pipeline currently reviews/trains from one camera per converted episode.
 
-**Action discrepancy:** both the official web schema and downloaded feature metadata describe generic `action` as six joint velocities plus gripper position. Across all 119 downloaded steps, its first six values instead exactly equal `action_dict.cartesian_position`, and its last value equals `action_dict.gripper_position`. The maximum difference from named Cartesian velocity is approximately 3.6143. This observation applies to this shard only. The adapter explicitly selects seven commanded absolute joint positions plus normalized gripper closure, and never treats generic `action` as velocity.
+Both the official web schema and downloaded feature metadata describe generic `action` as six joint velocities plus gripper position. Across all 119 downloaded steps, its first six values instead exactly equal `action_dict.cartesian_position`, and its last value equals `action_dict.gripper_position`. The maximum difference from named Cartesian velocity is approximately 3.6143. This observation applies to this shard only. The adapter explicitly selects seven commanded absolute joint positions plus normalized gripper closure, and never treats generic `action` as velocity.
 
 Position fields use radians and normalized gripper closure (0 open, 1 closed), following the [publisher's robot implementation](https://github.com/droid-dataset/droid/blob/33ae6a67274f36d2e29525b86f23a56616ef43a7/droid/franka/robot.py). The schema lists every component, units and meaning. It does not assert that this action representation is appropriate for an arbitrary policy checkpoint.
 
 ## Timing and acceptance
 
-The RLDS schema contains **no measured capture timestamps**. The paper states a nominal recording/control rate of 15 Hz. The adapter assigns step `i` the inferred time `i / 15` and aligns fields by their shared RLDS step. Generated MP4 PTS are exact for that nominal grid; they are not evidence of physical camera/robot synchronization. The source manifest, review banner, native boundary evidence and LeRobot alignment provenance retain this distinction. Exact coincidence with a derived frame is recorded separately from a measured source boundary.
+The RLDS schema has no measured capture timestamps. The paper states a nominal recording/control rate of 15 Hz. The adapter assigns step `i` the inferred time `i / 15` and aligns fields by their shared RLDS step. Generated MP4 PTS are exact for that nominal grid; they are not evidence of physical camera/robot synchronization. The source manifest, review banner, native boundary evidence and LeRobot alignment provenance retain this distinction. Exact coincidence with a derived frame is recorded separately from a measured source boundary.
 
 An integer-PTS duration fix prevents rounded FFprobe decimal fields from inventing an extra tail frame for this 119-frame clip. LeRobot Parquet retains `source.timestamp` as float64; its current torch loader casts the value to float32. Integer frame indices and the alignment JSON retain the original mapping. Verification checks the stored doubles and the loader's actual float32 behavior separately.
 
@@ -77,8 +77,8 @@ uv run --locked --project integrations/lerobot python -m integrations.lerobot.ve
   data/local/droid-converted artifacts/droid-native-fixture artifacts/droid-lerobot
 ```
 
-The browser harness uses a disposable local database/session. It edits the first temporal boundary from 0.6 to 0.4 seconds, submits, reloads, and checks the persisted correction. A named test actor approves the immutable export. Outcome stays `unknown`, quality is `incomplete`, and the native note identifies automated integration testing. These are **automated test decisions, not human-approved reference labels**. Normal uncertainty/freshness gates remain enforced.
+The browser test uses a disposable local database and authenticated session. It edits the first temporal boundary from 0.6 to 0.4 seconds, submits, reloads, and checks the persisted correction. A named test actor approves the immutable export. Outcome stays `unknown`, quality is `incomplete`, and the native note identifies automated integration testing. The approval is an automated test decision. Uncertainty and revision checks still apply.
 
 The verification compares all 119 loaded state/action vectors to the original RLDS numeric sidecar, decodes every selected-camera image, checks frame/time/label correspondence, and forms a DataLoader batch and action window. Each loaded RGB frame is also compared with the matching source-video frame: maximum normalized mean absolute error was 0.011254, below the explicit 0.02 bound for this lossy re-encode. It checks idempotence and episode-end action padding, with zero omitted or repeated source frames. [Acquisition/schema evidence](evidence/droid-acquisition.json) and [roundtrip evidence](evidence/droid-roundtrip.json) contain metadata only. Screenshots and recordings at `artifacts/droid-native*.png` and `artifacts/droid-walkthrough.webm` show the actual application and stay untracked.
 
-No human annotation efficiency, real-label quality improvement, optimizer step, policy evaluation, PI checkpoint compatibility or Apple/MLX result is established by this gate.
+This run verifies the data path. The [MLX checks](mlx.md) and [controlled corruption benchmark](messy-droid.md) test separate parts of the product. Human label quality and policy performance remain unmeasured.

@@ -1,4 +1,4 @@
-"""Deterministic illustrated robot fixtures. No physical robot or learned model."""
+"""Generate repeatable illustrations and numeric streams for software tests."""
 
 import subprocess
 from pathlib import Path

@@ -1,78 +1,65 @@
 # Label Studio integration
 
-Label Studio 1.23.2 and its official Python SDK 2.1.2 are locked in the default `labelstudio` dependency group. Native Video, TimelineLabels and TimeSeries own playback, temporal editing and sensor visualization. This replaces the bespoke editor as the primary application path.
+Label Studio 1.23.2 and Python SDK 2.1.2 are locked in the default environment. Native Video, TimelineLabels and TimeSeries provide playback, temporal editing and sensor plots. The [review configuration](../integrations/labelstudio/review.xml) applies the project's [theme](design.md) through supported Style and View tags. Authentication, navigation and annotation history remain part of the upstream application.
 
-The labeling XML is [review.xml](../integrations/labelstudio/review.xml). Its cream background, compact monospace typography, serif title and square black media border follow the [reference-derived design](design.md), applied through the supported Style/View tags. Label Studio branding remains visible. The application chrome and authentication remain Label Studio's own. There is no frontend fork or deprecated standalone frontend dependency.
+## Open a review project
 
-## Local use
+Use the [batch workflow](batch-workflow.md) to prepare and publish a queue. `python -m robo serve` starts Label Studio at `127.0.0.1:8000`, with its database under the selected store's `labelstudio/` directory. The command creates no account or API credential.
 
-`python -m robo serve` runs native Label Studio on 127.0.0.1:8000. Its data lives under the configured robotics store's `labelstudio/` directory. It does not automatically create users or API credentials. `prepare-labelstudio EPISODE_ID` creates a native task import JSON, labeling XML, explicit frame mapping and provenance sidecar.
+For a single episode, `prepare-labelstudio EPISODE_ID` writes a task JSON, labeling XML, frame map and original bundle. Import the JSON through the normal project UI and add Local Files storage rooted at `STORE/review_proxy`. Open tasks from the Data Manager table. The project needs access only to its proxy directory.
 
-The first-slice manual path uses the normal Label Studio project setup/import UI and a project-scoped Local Files storage rooted at `STORE/review_proxy`. Open imported tasks by clicking their row in the native Data Manager table. The application document root is the selected store, while the project storage authorizes only the review proxy subdirectory. Do not authorize the full filesystem or expose the development server publicly.
+Python callers can pass an authenticated official SDK client to `publish_bundle()`. The function creates the project, storage and task, then returns a binding that records the source, task and proxy. `NativeReviewBridge` uses that binding to read a saved annotation and check it before approval or export. See [native approval](native-approval.md).
 
-For automation, `publish_bundle()` accepts an already authorized official SDK client. It creates a project, authorizes its proxy storage and imports the task/predictions, returning a trusted source/task/proxy binding. The bridge does not create an API credential for that client. `annotation_snapshot()` validates native SDK JSON exports against that binding and emits draft snapshots. The [native approval bridge](native-approval.md) now registers the original prepared bundle, refreshes the chosen saved annotation, and requires an explicit fresh accept/reject decision before a checked training export.
+## Review clocks and source clocks
 
-## Timing and frame semantics
+Label Studio recommends constant-frame-rate video. The bridge creates a display proxy by holding each source frame until the next original timestamp. The default rate is the ceiling of the reciprocal of the shortest frame interval, up to 60 fps. Preparation fails if that rate cannot include every source frame. An explicit `--fps` can use a coarser grid, with omissions reported in the manifest and task banner.
 
-Label Studio recommends constant-frame-rate video. The bridge produces a separate display proxy by holding the last measured source frame until its next original PTS. Its default rate is the ceiling of the reciprocal of the shortest measured frame interval, up to 60 fps. It checks that every source frame appears at least once. If that cannot be achieved within the pilot limit, preparation fails rather than silently dropping observations. An explicit `--fps` opts into a different grid; the manifest and task banner report omitted source frames. This retains frame coverage, not lossless video pixels or arbitrary timestamp precision: the proxy is H.264 re-encoded.
+The proxy is an H.264 re-encode. Every display frame records its original source index, integer PTS and episode time. Raw video and robot streams stay unchanged.
 
-Every display frame records its original source index, integer PTS and episode time. Raw video and robot streams remain unchanged. Native timeline spans are one-based and inclusive: `[a,b]` becomes `[(a-1)/fps, min(b/fps, episode_duration))` on the **generated review clock**. Adjacent ranges share the same boundary even when they divide held copies of one source frame. We do not expand both ranges to that entire source frame's interval, which would create overlaps.
+Native timeline spans are one-based and inclusive. A span `[a,b]` becomes `[(a-1)/fps, min(b/fps, episode_duration))` on the generated review clock. Adjacent ranges share a boundary even when they divide copies of the same held source frame. Expanding both ranges to that frame's full duration would create an overlap.
 
-Machine boundaries snap to the nearest shared grid edge, with numerical displacement at most half a grid period. Candidates that collapse to zero width are omitted and counted in trusted provenance. Human edit resolution is one grid period. Neither bound is a claim about true event accuracy: missing source observations may create much wider uncertainty. Exported `boundary_evidence` records the preceding/following measured PTS, whether the boundary exactly coincides with a measured frame, and the full source-time bracket. A recording-end boundary has no following frame.
+Machine boundaries snap to the nearest grid edge, at most half a grid period away. Candidates that collapse to zero width are omitted and counted. Human editing has one-grid-period resolution. Neither bound measures the accuracy of a real event boundary. Exported `boundary_evidence` records the surrounding source timestamps and marks whether timing was measured or inferred.
 
-For example, the browser fixture removes source frames at 5/12 and 6/12 seconds. A native edit to frames 1–6 exports `[0, 0.5)` on the 12 fps review grid. Its end lies between measured observations at 4/12 and 7/12 seconds, an explicit 0.25-second bracket. It does **not** assert that a measured image or real action boundary exists at 0.5 seconds. Unit tests also cover adjacent native ranges within a held frame, 30/60 fps coverage, 30000/1001 fps input, coarse-rate loss, empty predictions and collapsed candidates.
+For example, the browser fixture removes observations at 5/12 and 6/12 seconds. Editing native frames 1 through 6 produces `[0, 0.5)` on the review clock. The end lies between source observations at 4/12 and 7/12 seconds, leaving a 0.25-second bracket. DROID uses an inferred step clock, so its corresponding evidence does not claim measured capture times.
 
-The display sensor CSV starts at relative zero, preventing the native TimeSeries first-row offset rule from shifting delayed streams. It uses declared clock offsets and tolerance-bound nearest samples, with blanks for missing values. The task embeds those display values as numeric JSON with null gaps and numeric seconds formatting; this avoids a calendar axis. Original state/actions remain the training-facing source.
+Sensor displays start at zero and apply each stream's declared offset. Nearest samples must satisfy the declared tolerance; gaps remain null. Numeric seconds formatting avoids a calendar axis. Training reads the original streams, not the display samples.
 
-Label Studio's native `lead_time` is retained as raw metadata and is not advertised as active correction time. Browser test durations are automated software checks, not human-study results. Imported completion does not automatically approve a training annotation.
+## Verify the application
 
-## Reproducible real-application check
+Install the browser dependencies described in [development setup](development.md), then run:
 
 ```bash
 uv run --locked python -m scripts.labelstudio_smoke --sync-contract
 uv run --locked python -m scripts.labelstudio_smoke --browser
 ```
 
-Install the locked browser/recording dependency with `npx playwright install chrome ffmpeg`, or use the system Chromium/FFmpeg setup in [development notes](development.md).
+The test starts the actual Django application with a disposable database and authenticated session. SDK requests use that session through a custom HTTP client. SDK 2.x requires a constructor key string, but HTTPX removes the test sentinel before sending requests. Native JSON export also dereferences a user token, so the test creates one for that call and revokes it in `finally`. The database is removed at exit.
 
-This starts the actual Django application with a disposable SQLite database, an unusable-password fixture user and a short-lived authenticated browser session. SDK calls use that session through its supported custom HTTP client. SDK 2.x requires a constructor key string; the test's non-secret sentinel is removed by HTTPX authentication before requests, and the server enforces its actual session/CSRF permissions.
+The browser blocks non-local requests. Telemetry and update checks are disabled. The pinned release's Compare All mode leaves a synchronization manager uninitialized, so the supported feature flag `fflag_fix_front_dev_3391_interactive_view_all=false` disables that mode for the test. Single-task annotation remains enabled.
 
-Label Studio auto-creates a user token, which the test immediately removes. Its native JSON export implementation dereferences `user.auth_token` even without resource downloads, so the fixture creates a temporary token for that one export call and revokes it in `finally`. No persistent API credential is retained, no token is printed, and the entire database is removed at exit. Normal application authentication is not disabled.
+The test clicks a task, copies its prediction through **Create an annotation**, edits a boundary and submits. It checks stored API data, reloads the saved annotation and exports through the SDK. Imported predictions carry `interactive_mode=false`, as required by this frontend version. The SDK retrieves prediction IDs from the native export and verifies their original contents.
 
-Telemetry, Sentry and automatic update checks are disabled. The browser blocks all non-local requests. The supported feature-flag setting `fflag_fix_front_dev_3391_interactive_view_all=false` disables Compare All: in this pinned version, that mode leaves a per-annotation synchronization manager uninitialized during mounting. This is a bounded runtime workaround, not a patch to upstream code. Single-task annotation and sensor synchronization remain enabled.
+After a reload, the test selects the saved annotation rather than relying on the default tab. It waits for the video to attach before polling media readiness. Submitted TextArea notes appear as saved results, while the input becomes blank. Failure evidence includes a screenshot, accessible UI snapshot and request statuses without session credentials.
 
-The browser opens the native task table, clicks the imported task, selects the prediction and uses native **Create an annotation**. Prediction results explicitly carry `interactive_mode=false`, which the pinned frontend requires when copying imported results. It then edits, submits, checks persisted API data, reloads and independently exports via the SDK. Native exports represent predictions as IDs; the harness retrieves those IDs through the SDK and checks that the original machine results and run identity are unchanged.
+## Known task-loading defect
 
-All browser child processes have a 90-second ceiling, with shorter per-action timeouts. Failure captures include a screenshot, accessible UI snapshot and request status trace without session credentials. These fixtures exercise actual application routes and browser actions, never internal-state setters.
+Cold navigation to `data?task=ID` can lose predictions in Label Studio 1.23.2. The task-detail response contains predictions, but a later task-list response can replace it with a row that omits them. If this happens before the editor mounts, the editor shows an empty annotation.
 
-## Native task loading limitation
-
-Cold navigation directly to `data?task=ID` is unreliable in pinned Label Studio 1.23.2. CI and a local run with 6× browser CPU throttling received the full prediction in the task response but rendered zero predictions and one empty human annotation. The project model version matched the imported prediction and `show_collab_predictions` was true; changing those settings or remote flags was not the remedy.
-
-The controlled regression delivers both real task-detail responses before the real task-list response. List rows omit predictions, and the native Data Manager replaces the detailed task entry with that metadata-only row. Read-only observations confirm the task store loses its prediction; if replacement occurs before editor initialization finishes, the editor also has zero predictions. The bundled upstream `DataStore.setList` replacement and `LSFWrapper.setLSFTask` paint wait explain this ordering. No upstream code or setters are patched. The supported workflow for this pilot is to open the Data Manager table first and click a task row. The complete prediction → correction → submit → reload → SDK export check passes through that route under the same local slowdown. Ordinary page reload after saving remains part of the test. Cold direct links remain an upstream limitation, not a fixed capability of this bridge.
-
-To exercise slower browser initialization without altering application state:
+Open the Data Manager first and click a task row. This route passes the complete correction, submit, reload and export test, including at 6× browser CPU throttling. Ordinary reload after saving remains covered. The bridge does not patch upstream stores or inject predictions.
 
 ```bash
 LS_CPU_RATE=6 uv run --locked python -m scripts.labelstudio_smoke --browser
-# Reproduce the pinned cold-open bug, then recover through native navigation:
 LS_TASK_LOADING_CONTRACT=1 LS_CPU_RATE=6 uv run --locked python -m scripts.labelstudio_smoke --browser
 ```
 
-CI runs the second command. It asserts the pinned upstream failure as a negative control, clicks the native project breadcrumb and task row, and then requires every review/persistence assertion to pass. Revisit the negative control when upgrading Label Studio. Request delays reorder unmodified server responses; they do not manufacture labels. This uses Chromium's CPU throttling test API, not a performance benchmark. Read-only diagnostics record the delivered prediction IDs/counts, project settings and native store counts. The workflow still requires actual native controls and persisted backend results; it does not add predictions through internal state or skip missing suggestions.
+CI uses the second command. It reorders unmodified server responses to reproduce the defect, then recovers through the project table and requires the full review sequence to pass. Revisit the negative control when upgrading Label Studio. CPU throttling tests loading order; it is not a hardware performance measurement.
 
-## Native synchronization regression
+## Known collapsed-plot defect
 
-`--sync-contract` reduces the official synchronized-video example to one local video and one sensor channel. It exercises a time-formatted CSV, our numeric JSON, a closed Collapse, an initially-open Collapse resized while closed, and the actual themed configuration. Browser actions perform the seeks. Read-only native state observations explain failures; the test never invokes native setters or injects seek events.
+`--sync-contract` tests visible CSV and numeric JSON plots, two Collapse configurations and the themed editor. Visible plots seek correctly. Collapsed plots can retain `canvasWidth=0` after opening, which causes `isNotReady` to suppress seeking. The component measures width on mount and window resize but does not reliably refresh it when Collapse visibility changes.
 
-In pinned Label Studio 1.23.2, both visible minimal configurations seek correctly. The closed cases retain `canvasWidth=0` while the expanded DOM has positive width; `isNotReady` then suppresses seeking. The bundled TimeSeries implementation measures width on mount/window resize, but Collapse visibility changes do not reliably refresh that stored width. This is an upstream component interaction triggered by our layout. Changing numeric values or plot selectors did not fix it. The integration avoids placing TimeSeries inside Collapse, and verifies seeking after a real viewport resize. No CSS visibility workaround or frontend fork is used.
+The review configuration keeps sensor plots visible and tests seeking after a real viewport resize. Both failing Collapse cases remain negative controls for the pinned version. No native setter or injected seek event replaces the browser action.
 
-The test asserts the two known upstream failures as controls for this pinned release and verifies the supported configuration succeeds. Revisit those controls when upgrading Label Studio; a fixed upstream version can restore optional collapsing. Its JSON and screenshots are CI artifacts.
+## References
 
-## Open gates
-
-Real DROID acquisition/validation, measured active human timing, actual LeRobot creation and loader round-trip, and PI-family MLX parity/training are not complete. The training target is now the user's M5 Pro 48 GB machine; prior CUDA planning is historical. Existing community inference ports have not been installed or reused without resolved permissions. MLX's documented Linux CPU support may enable genuine small-shape gradient/parity/checkpoint tests before separate Apple Metal verification.
-
-## Primary references
-
-[Native TimelineLabels](https://labelstud.io/tags/timelinelabels), [synchronized video and time series](https://labelstud.io/templates/timeseries_audio_video), [supported Style tag](https://labelstud.io/tags/style) and [CFR Video requirements](https://labelstud.io/tags/video) informed this adapter. The standalone frontend is [deprecated upstream](https://labelstud.io/guide/frontend); this project uses the maintained application.
+The adapter follows the official [TimelineLabels](https://labelstud.io/tags/timelinelabels), [synchronized video and time series](https://labelstud.io/templates/timeseries_audio_video), [Style](https://labelstud.io/tags/style) and [Video](https://labelstud.io/tags/video) contracts. The standalone frontend is [deprecated](https://labelstud.io/guide/frontend), so this project uses the maintained application. Current verification results are in [results](results.md).

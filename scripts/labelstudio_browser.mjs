@@ -9,7 +9,6 @@ const mutations = [];
 const errors = [];
 const realDroid = process.env.LS_FIXTURE_REAL_DROID === "1";
 const evidencePrefix = realDroid ? "droid" : "labelstudio";
-// Real dataset images stay in ignored local evidence, never the Git history.
 const screenshotPrefix = realDroid
   ? "artifacts/droid"
   : "docs/evidence/labelstudio";

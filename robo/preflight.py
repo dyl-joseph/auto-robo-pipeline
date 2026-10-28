@@ -1,4 +1,4 @@
-"""Check local prerequisites without fetching models or accepting access agreements."""
+"""Inspect local application, model and hardware prerequisites."""
 
 import json
 import shutil

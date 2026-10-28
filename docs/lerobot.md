@@ -1,6 +1,6 @@
-# Accepted review → LeRobot
+# Convert an accepted export to LeRobot
 
-The adapter uses **official LeRobot 0.6.1** to create, save, finalize and load a local v3 dataset. It converts an immutable accepted project export, preserving native annotation and prediction origins, outcome, quality flags, notes, audit history and original clocks. It does not infer robot joint names or action semantics.
+The adapter uses official LeRobot 0.6.1 to create, save, finalize and load a local v3 dataset. It converts an immutable accepted project export, preserving native annotation and prediction origins, outcome, quality flags, notes, audit history and original clocks. It does not infer robot joint names or action semantics.
 
 ```mermaid
 flowchart LR
@@ -18,7 +18,7 @@ flowchart LR
 
 ## Isolated runtime
 
-Label Studio and training dependencies have independent lockfiles. The dataset runtime installs the `dataset` extra, without policy models, hardware drivers or accounts. Linux uses official PyTorch CPU wheels; macOS resolves its normal wheels. This slice was exercised on Linux CPU only. It does not install or verify MLX/Metal training.
+Label Studio and training dependencies have independent lockfiles. The dataset runtime installs the `dataset` extra, without policy models, hardware drivers or accounts. Linux uses official PyTorch CPU wheels; macOS resolves its normal wheels. These dataset checks run on Linux CPU. The [MLX adapter](mlx.md) has its own environment and verification commands.
 
 ```bash
 # Repository root; Python 3.12, uv 0.12.23 and FFmpeg required:
@@ -73,7 +73,7 @@ dataset = LeRobotDataset(
 batch = next(iter(DataLoader(dataset, batch_size=4, num_workers=0)))
 ```
 
-`observation.state` and `action` retain schema order as float32. `observation.images.source` loads as CHW float32 in [0,1]. `source.frame_index` and `source.timestamp` retain original frame identity and absolute PTS seconds. `annotation.subtask` indexes the manifest's vocabulary. Outcome/quality/notes and the full accepted revision remain in `provenance/accepted/episodes.jsonl`, rather than becoming invented reward targets.
+`observation.state` and `action` retain schema order as float32. `observation.images.source` loads as CHW float32 in [0,1]. `source.frame_index` and `source.timestamp` retain original frame identity and absolute PTS seconds. `annotation.subtask` indexes the manifest's vocabulary. Outcome/quality/notes and the full accepted revision remain in `provenance/accepted/episodes.jsonl`, and are not converted into reward targets.
 
 LeRobot 0.6.1 loads shape-(1,) numeric features as scalars. The illustration has one state/action component; the two-component fixture verifies vector batches and action windows. A policy-specific processor must respect actual source dimensions and representation; this adapter does not claim π₀.₅-ready action semantics. LeRobot marks episode-end action-window padding with `action_is_pad`, tested separately from source alignment, which never pads missing measurements.
 
@@ -96,12 +96,8 @@ uv run --locked --project integrations/lerobot python -m integrations.lerobot.ve
 
 CI transfers the actual browser/SDK smoke's accepted synthetic artifact and media to a separate LeRobot job. It checks 96 training rows, decoded images, native outcome/quality, the corrected 0.5-second boundary, original PTS, repeat conversion and a DataLoader batch. It transfers no Label Studio database, session or credential. [Recorded run](evidence/lerobot-roundtrip.json).
 
-The cold-loading negative control waits up to 30 seconds for the video element to attach, then polls its readiness for up to 20 seconds. This avoids the editor's cold mount failing on Playwright's seven-second locator default inside the readiness poll. The controlled response ordering and zero-prediction assertion remain intact. The complete native correction/approval/export smoke passed with the control enabled and 6× CPU throttling in the published environment; its process has a 150-second overall cap.
+The [real DROID pilot](droid.md) passed native correction, approval, export and official LeRobot loading for 119 steps. Its nominal 15 Hz timing is inferred; its state/action representation is explicitly seven joint positions plus gripper closure. All loaded vectors are checked against decoded RLDS, with zero omitted/repeated frames. `source.timestamp` is stored as float64 in Parquet but the official torch transform loads it as float32; integer frame identity and exact mapping remain in provenance. [Real-data evidence](evidence/droid-roundtrip.json).
 
-After Submit, the harness verifies the exact stored note through the task API. After reload it explicitly selects that saved annotation, excluding the prediction tab even when their numeric IDs coincide, and waits for the editor/video before checking the visible submitted note and boundary. Label Studio's TextArea clears its input after Enter and renders submitted text separately, so checking the input value would be incorrect. The browser sequence has a 120-second cap inside the process deadline. This full sequence also passed with the loading control and 6× CPU throttling.
-
-The [real DROID pilot](droid.md) now passes local native correction/approval/export and official LeRobot loading for 119 steps. Its nominal 15 Hz timing is inferred; its state/action representation is explicitly seven joint positions plus gripper closure. All loaded vectors are checked against decoded RLDS, with zero omitted/repeated frames. `source.timestamp` is stored as float64 in Parquet but the official torch transform loads it as float32; integer frame identity and exact mapping remain in provenance. [Real-data evidence](evidence/droid-roundtrip.json).
-
-No optimizer step, PI-family weight conversion, fine-tuning, policy evaluation, human-efficiency study or Apple benchmark is claimed. These remain separate gates.
+Dataset conversion does not establish policy quality. See the [MLX guide](mlx.md) for the tested action-expert training path and its remaining pretrained and hardware requirements.
 
 Sources: [official LeRobot v3 format](https://huggingface.co/docs/lerobot/lerobot-dataset-v3), [pinned PyPI release](https://pypi.org/project/lerobot/0.6.1/), [official TorchCodec compatibility](https://github.com/meta-pytorch/torchcodec#compatibility-with-torch-versions). The installed 0.6.1 API is exercised directly.

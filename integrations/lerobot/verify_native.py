@@ -1,4 +1,4 @@
-"""Load the real native browser/SDK smoke's accepted synthetic version with LeRobot."""
+"""Load the native browser test export through LeRobot and compare its contents."""
 
 import argparse
 from importlib.metadata import version

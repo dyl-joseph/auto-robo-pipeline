@@ -1,4 +1,4 @@
-"""Robotics-specific translation around the supported Label Studio editor."""
+"""Prepare robot episodes for Label Studio and decode saved annotations."""
 
 import bisect
 import csv
@@ -350,7 +350,7 @@ def task_data_hash(data: dict, binding: dict) -> str:
 
 
 def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) -> dict:
-    """Read an SDK JSON export against trusted import provenance; never imply approval."""
+    """Validate an SDK export against the original task binding and return a draft."""
     episode = store.episode(binding["episode_id"])
     if (
         task["id"] != binding["task_id"]
@@ -394,7 +394,7 @@ def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) ->
 
 
 def review_fields(results: list[dict]) -> dict:
-    """Decode only the supported native controls; do not silently drop human decisions."""
+    """Decode supported controls and reject unknown annotation fields."""
     fields = {"outcome": "unknown", "quality_flags": [], "reviewer_evidence": []}
     seen = set()
     for result in results:

@@ -1,6 +1,6 @@
 # Native review to accepted export
 
-Label Studio owns annotation editing and saving. The bridge now owns an explicit second decision: whether that exact saved annotation may enter a training export. This uses the existing immutable revision store and the official SDK, without adding another annotation UI or using Enterprise review features.
+Label Studio owns annotation editing and saving. The bridge records a separate decision about whether that saved annotation may enter a training export. It uses the local revision store and official SDK.
 
 ```mermaid
 stateDiagram-v2
@@ -17,9 +17,9 @@ stateDiagram-v2
 
 ## Operator workflow
 
-Prepare/import the task as described in the [native GUI guide](labelstudio.md). Preparation now writes `bundle.json` alongside the import JSON, XML and mapping. Keep that original bundle: it binds the source, task data, review clock and immutable machine suggestions.
+Prepare/import the task as described in the [native GUI guide](labelstudio.md). Preparation writes `bundle.json` alongside the import JSON, XML and mapping. Keep that original bundle: it binds the source, task data, review clock and immutable machine suggestions.
 
-The CLI requires an **existing** authorized credential in `LABEL_STUDIO_API_KEY` and defaults to `http://127.0.0.1:8000`. It neither creates nor stores a credential. Python callers can instead supply an already authenticated official SDK client/session to `NativeReviewBridge`, as the integration test does. Live bridge requests are restricted to loopback origins. Offline inspection requires no credential.
+The CLI requires an existing authorized credential in `LABEL_STUDIO_API_KEY` and defaults to `http://127.0.0.1:8000`. It neither creates nor stores a credential. Python callers can instead supply an already authenticated official SDK client/session to `NativeReviewBridge`, as the integration test does. Live bridge requests are restricted to loopback origins. Offline inspection requires no credential.
 
 ```bash
 # After manual project/task import, register their actual native IDs once:
@@ -44,15 +44,19 @@ uv run --locked python -m robo validate-export artifacts/accepted-v1
 
 Use `inspect` to obtain the actual revision after any prior operation; the numbers above assume a fresh store. The approver string is a local operator assertion, not an enterprise identity or proof of independent adjudication. The native annotation's actual reviewer ID is recorded separately.
 
-## Freshness contract
+## Freshness rules
 
-- A binding is immutable and scoped to the local instance, project and task. Registration verifies the prepared labeling configuration, video/proxy hashes, task data and machine prediction contents. Repeated registration of the same binding is harmless; replacing it is rejected. Changing model provenance or the review grid requires a separately prepared task/store workflow; automatic rebinding is deliberately unsupported in this slice.
-- Refresh reads the chosen submitted annotation through the SDK. It validates timeline spans, Outcome, Quality and reviewer notes. Missing Outcome remains `unknown`. Visible native autosave drafts, cancelled/rejected annotations, unknown controls, unbound parent predictions and changed machine predictions fail closed.
-- Accept/reject names the exact expected bridge revision and rechecks native content. SQLite serializes bridge decisions; a stale expected revision fails. A changed native annotation, including a resave with a newer timestamp, must be imported as a new draft before approval. Uncertainty must be resolved before acceptance. Re-importing unchanged content does not create a revision, erase a rejection or invalidate an unchanged acceptance.
-- Every **new export request**, including a repeat to an existing output directory, rechecks the selected native annotation and immutable machine origin. The legacy export/approval path cannot bypass this check for a bound episode. Native read failure means no new approval/export.
-- The bridge reads the task again after retrieving the annotation, and checks the project configuration again, to detect changes during observation. It records the observation time, native version timestamp and content hash. This is **not a transaction across Label Studio and SQLite**. Finish/close concurrent editing before approving or exporting. Unsaved edits not exposed by the authenticated API are outside the observation. Changes after the last read are detected on the next refresh/approval/export; there is no webhook or background invalidation claim.
-- The audit contains imported snapshots and explicit bridge decisions, not every intermediate native autosave. Concurrent-editor save behavior remains Label Studio's own; the bridge does not add a browser save lock or claim to prevent a stale native tab from saving.
-- Existing export files are historical snapshots. Later edits block new export eligibility; they do not rewrite, delete or invalidate the hashes of a previously published artifact. `validate-export` deliberately works offline. Repeated unchanged exports have the same dataset version; fresh-read receipts are returned separately from immutable dataset contents.
+A binding identifies one local instance, project and task. Registration checks the labeling configuration, source and proxy hashes, task data and machine predictions. Repeating the same binding is safe; replacing it is rejected. Batch bindings allow only queue priority and reason to change. A different review grid or machine origin requires a new prepared task.
+
+Refresh reads the chosen submitted annotation through the SDK and validates its timeline, outcome, quality flags and notes. Missing outcome stays `unknown`. Unsaved drafts, cancelled annotations, unknown controls, unbound predictions and changed prediction contents are rejected.
+
+Accept and reject require the expected local revision and recheck native content. A stale revision fails. A native edit or resave must become a new local draft before approval, and uncertainty must be resolved before acceptance. Reading unchanged content creates no revision and preserves an existing acceptance or rejection.
+
+Every new export request rechecks the selected native annotation and machine origin, including a repeat export to an existing directory. A failed native read blocks the request. The legacy path cannot bypass these checks for a bound episode.
+
+The bridge reads the task and project configuration again after retrieving the annotation to detect changes during the request. These reads do not form a transaction across Label Studio and SQLite. Finish concurrent editing before approval or export. A change after the last read is detected on the next operation; unsaved browser edits and intermediate native autosaves are outside the local audit.
+
+Existing export files remain historical snapshots. Later edits block new exports but do not rewrite old files. `validate-export` works offline. Unchanged exports have the same dataset version; the fresh-read receipt is returned separately from the immutable dataset.
 
 ## Timing and provenance
 
@@ -70,4 +74,4 @@ LS_TASK_LOADING_CONTRACT=1 LS_CPU_RATE=6 \
   uv run --locked python -m scripts.labelstudio_smoke --browser
 ```
 
-This is synthetic software verification, not a human efficiency study or real-DROID result. The SDK calls follow the official [task](https://api.labelstud.io/api-reference/api-reference/tasks/get) and [annotation](https://api.labelstud.io/api-reference/api-reference/annotations/get) contracts.
+The default fixture uses synthetic video. The [DROID demo](demo.md) exercises the same path on real footage. Both use automated test decisions. The SDK calls follow the official [task](https://api.labelstud.io/api-reference/api-reference/tasks/get) and [annotation](https://api.labelstud.io/api-reference/api-reference/annotations/get) contracts.
