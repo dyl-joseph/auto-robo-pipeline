@@ -42,6 +42,12 @@ jobs:
           CHROMIUM_PATH: /usr/bin/google-chrome
           LS_TASK_LOADING_CONTRACT: "1"
           LS_CPU_RATE: "6"
+          ROBO_NATIVE_EXPORT_FIXTURE: artifacts/native-training-fixture
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-training-fixture
+          path: artifacts/native-training-fixture
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -52,4 +58,36 @@ jobs:
             artifacts/labelstudio-failure*
             artifacts/labelstudio-sync-*.png
             docs/evidence
+          retention-days: 14
+  lerobot:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      HF_HUB_OFFLINE: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: uv sync --locked --project integrations/lerobot
+      - run: uv run --locked --project integrations/lerobot python -m pytest -q integrations/lerobot/test_roundtrip.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-training-fixture
+          path: artifacts/native-training-fixture
+      - run: uv run --locked --project integrations/lerobot python -m integrations.lerobot.verify_native artifacts/native-training-fixture artifacts/native-lerobot
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lerobot-evidence
+          path: |
+            artifacts/lerobot-native.json
+            artifacts/native-lerobot
           retention-days: 14

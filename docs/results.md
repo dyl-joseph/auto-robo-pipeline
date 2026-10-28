@@ -4,7 +4,7 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 
 | Evidence | Observed outcome |
 | --- | --- |
-| Python behavior tests | 72 passed, including twelve native proxy cases, twenty-five native approval cases and optional pretrained model smoke with downloaded pinned weights |
+| Python behavior tests | 89 passed, including seventeen causal training-alignment cases, twelve native proxy cases, twenty-five native approval cases and pretrained model smoke with pinned weights |
 | Native Label Studio 1.23.2 + SDK 2.1.2 | Actual project/storage/task/prediction import, annotation correction and native JSON export passed in a disposable authenticated application |
 | Native browser review | H.264 playback, two synchronized sensor plots, sensor-to-video seeking, temporal end-frame edit, submit, persisted API reread and reload passed without script errors |
 | Native task loading regression | Controlled detail-before-list responses reproduce the pinned cold-link bug; native table entry recovers prediction review, correction, submit, reload and SDK export under 6× browser CPU throttling |
@@ -17,6 +17,8 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 | Dependency readiness | 12 H.264 frames decoded, Parquet round-trip, FastAPI request passed |
 | Code checks | Ruff lint/format, browser JavaScript syntax, Prettier check |
 | Export consumer | JSONL/Parquet equality, file/semantic/version hashes, latest acceptance and split leakage checks tested |
+| Official LeRobot 0.6.1 | Five isolated integration tests pass: two training episodes and a separately loaded held-out split, numeric/image/label/PTS checks, DataLoader action windows and episode padding, hashes, repeat conversion and failed-decode cleanup |
+| Native accepted export → LeRobot | 96 synthetic rows loaded and checked; failure/recovery and original boundary evidence retained; zero source frames omitted, two repeated across a deliberately missing-frame gap; no policy training |
 | Learned perception | MobileNet-SSD executed on synthetic illustrations; bounded sampling, cache and provenance exercised |
 | DROID | No acquisition; public storage discovery blocked by proxy tunnel 403 |
 | Human time savings, agreement and error recall | Unmeasured; automation timings and fixture metrics do not establish these |
@@ -43,4 +45,4 @@ Temporal matches maximize cardinality and then total IoU within each episode and
 
 ## Remaining acceptance gates
 
-The original M1–M4 prototype and M5 software harness run. The ecosystem migration now verifies native review mechanics, trusted native snapshots, explicit approval and fresh accepted exports. Measured active human time, queue integration and actual LeRobot consumption remain open. M5's research gate also remains open: real public episodes, independent reference reviewers, counterbalanced timing, confidence intervals for quality preservation, and evidence that prioritization finds real errors. Learned action recognition, object masks/identities, near-duplicate embeddings, multi-camera adapters and downstream policy training are not implemented.
+The original M1–M4 prototype and M5 software harness run. The migration verifies native review, trusted snapshots, explicit approval, fresh accepted exports and actual official LeRobot consumption on synthetic fixtures. [LeRobot evidence](evidence/lerobot-roundtrip.json) records the native-to-loader run. Measured active human time and queue integration remain open. M5's research gate also remains open: real public episodes, independent reference reviewers, counterbalanced timing, quality confidence intervals, and evidence that prioritization finds real errors. Learned action recognition, object masks/identities, near-duplicate embeddings, multi-camera adapters and downstream policy training are not implemented.

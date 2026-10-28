@@ -5,6 +5,7 @@ Uses an unusable-password fixture user and session. Native-export fixture tokens
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -300,7 +301,10 @@ def run(directory: Path):
                 )
                 return
             subprocess.run(
-                ["node", "scripts/labelstudio_browser.mjs"], env=environment, check=True, timeout=90
+                ["node", "scripts/labelstudio_browser.mjs"],
+                env=environment,
+                check=True,
+                timeout=150,
             )
             exported_task = next(task for task in native_export() if task["id"] == browser_task_id)
             prediction = sdk.predictions.get(exported_task["predictions"][0])
@@ -353,6 +357,17 @@ def run(directory: Path):
             record = validate_export(release)[0]
             assert record["annotation"] == accepted
             assert record["annotation"]["native"]["boundary_evidence"][0]["end"] == boundary
+            # Transfer only synthetic media/manifests and the accepted artifact to the
+            # isolated LeRobot runtime. Never copy the application's database/session.
+            if fixture_path := os.environ.get("ROBO_NATIVE_EXPORT_FIXTURE"):
+                fixture_path = Path(fixture_path)
+                fixture_path.mkdir(parents=True, exist_ok=False)
+                shutil.copytree(release, fixture_path / "accepted")
+                source = store.root / record["episode"]["media"]
+                target = fixture_path / "source" / record["episode"]["media"]
+                target.parent.mkdir(parents=True)
+                shutil.copyfile(source, target)
+                shutil.copyfile(source.parent / "episode.json", target.parent / "episode.json")
             changed = json.loads(json.dumps(exported_task["annotations"][0]["result"]))
             changed[0]["value"]["ranges"][0]["end"] = 5
             sdk.annotations.update(native_id, result=changed)

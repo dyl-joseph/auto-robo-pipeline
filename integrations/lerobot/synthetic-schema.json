@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "robot_type": "synthetic-illustration-no-physical-robot",
+  "fps": 12,
+  "width": 320,
+  "height": 180,
+  "max_video_age_s": 0.25,
+  "state": [
+    {
+      "stream": "gripper",
+      "index": 0,
+      "name": "illustrated_gripper_open",
+      "units": "normalized",
+      "meaning": "Generated scalar for the illustration; not a measured joint"
+    }
+  ],
+  "action": [
+    {
+      "stream": "command",
+      "index": 0,
+      "name": "illustrated_command",
+      "units": "normalized",
+      "meaning": "Generated scalar for the illustration; not a robot control command"
+    }
+  ]
+}
