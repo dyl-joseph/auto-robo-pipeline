@@ -37,7 +37,9 @@ def main():
     ls_prepare = commands.add_parser("prepare-labelstudio")
     ls_prepare.add_argument("episode_id")
     ls_prepare.add_argument("--output", type=Path, default=Path("artifacts/labelstudio-bundle"))
-    ls_prepare.add_argument("--fps", type=int, default=12)
+    ls_prepare.add_argument(
+        "--fps", type=int, help="explicit coarser grid; default retains source frames"
+    )
     serve = commands.add_parser("serve", help="start the primary native Label Studio GUI")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument(
