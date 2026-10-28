@@ -102,9 +102,10 @@ def verify_semantic(sdk, store, episode, directory, cookies):
     assert (
         first["subtask_text"] == "Automated test correction: initial state has no earlier sample."
     )
-    assert first["object_text"] == "Automated fixture object; unvalidated"
+    assert first["object_text"] is None
     assert first["source_start"] == 0 and first["source_end_exclusive"] == 2
     assert semantic["segments"][1]["source_start"] == 2
+    assert semantic["segments"][1]["object_text"] == "Automated fixture object; unvalidated"
     accepted = bridge.decide(
         episode["id"],
         1,
@@ -157,6 +158,7 @@ def verify_semantic(sdk, store, episode, directory, cookies):
             "prediction_sha256_before": before,
             "prediction_sha256_after": file_hash(prediction_path),
             "native_text_and_object_edit_verified": True,
+            "cleared_object_saved_reloaded_and_exported_as_absent": True,
             "boundary_edit_preserves_coverage": True,
             "saved_reload_verified": True,
             "text_only_edit_invalidates_approval": True,

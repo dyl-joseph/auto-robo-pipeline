@@ -93,9 +93,10 @@ def main():
     assert reader[0]["annotation.subtask_text"] == reader[1]["annotation.subtask_text"]
     assert reader[1]["annotation.subtask_text"] != reader[2]["annotation.subtask_text"]
     assert (
-        reader[1]["annotation.object_present"].item()
-        and not reader[2]["annotation.object_present"].item()
+        not reader[1]["annotation.object_present"].item()
+        and reader[2]["annotation.object_present"].item()
     )
+    assert reader[0]["annotation.object_text"] == reader[1]["annotation.object_text"] == ""
     batch = next(iter(DataLoader(reader, batch_size=8, num_workers=0)))
     assert batch["annotation.subtask_text"] == [
         reader[i]["annotation.subtask_text"] for i in range(8)
@@ -117,6 +118,7 @@ def main():
             "training_version": manifest["version"],
             "source_timing": "inferred_nominal_15_hz_no_capture_timestamps",
             "text_and_object_match_corrected_source_frames": True,
+            "cleared_object_absent_with_neighbor_preserved": True,
             "numeric_values_match_rlds_float32": True,
             "episode_task_unchanged": True,
             "prediction_sha256_before": before,

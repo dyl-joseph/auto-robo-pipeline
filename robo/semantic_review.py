@@ -251,8 +251,10 @@ def decoded_review(results, spec, proxy):
             values = result.get("value", {}).get("text")
             if key in texts or not isinstance(values, list) or len(values) != 1:
                 raise ValueError("one text submission per semantic region/control is required")
-            if not isinstance(values[0], str) or not values[0].strip() or len(values[0]) > 2000:
-                raise ValueError("semantic text must contain 1–2000 nonblank characters")
+            if not isinstance(values[0], str) or len(values[0]) > 2000:
+                raise ValueError("semantic text must be a string of at most 2000 characters")
+            if name == "subtask_text" and not values[0].strip():
+                raise ValueError("subtask text must contain nonblank characters")
             texts[key] = result["value"]
     if any(region not in timelines for region, _ in texts):
         raise ValueError("semantic text has no matching timeline region")
@@ -276,7 +278,7 @@ def decoded_review(results, spec, proxy):
             text = texts.get((region_id, name))
             if text and "ranges" in text and text["ranges"] != value["ranges"]:
                 raise ValueError("semantic text and timeline ranges disagree")
-            content[name] = text["text"][0].strip() if text else None
+            content[name] = (text["text"][0].strip() or None) if text else None
         segments.append(
             ReviewedSegment(
                 region_id=region_id,
