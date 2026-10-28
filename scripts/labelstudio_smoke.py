@@ -163,6 +163,13 @@ def run(directory: Path, real_source: Path | None = None):
     sdk = LabelStudio(
         base_url="http://testserver", api_key="local-session-transport", httpx_client=client
     )
+    if "--batch" in sys.argv:
+        from django.test import override_settings
+
+        from scripts.batch_smoke import verify_batch
+
+        with override_settings(LOCAL_FILES_DOCUMENT_ROOT=str(store.root)):
+            return verify_batch(sdk, store, directory, cookies, real_source)
     binding = publish_bundle(sdk, store, bundle)
     project_id = binding["project_id"]
     task_id = binding["task_id"]
@@ -444,10 +451,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--browser", action="store_true")
     parser.add_argument("--sync-contract", action="store_true")
+    parser.add_argument("--batch", action="store_true")
     parser.add_argument("--source", type=Path, help="Converted local real DROID source.json")
     args = parser.parse_args()
-    if args.source and (not args.browser or args.sync_contract):
-        parser.error("real DROID --source requires --browser and excludes --sync-contract")
+    if args.source and (not (args.browser or args.batch) or args.sync_contract):
+        parser.error("real DROID --source requires --browser or --batch; excludes --sync-contract")
     Path("artifacts").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix="labelstudio-", dir=Path("artifacts").resolve()

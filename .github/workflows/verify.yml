@@ -71,6 +71,9 @@ jobs:
           name: native-training-fixture
           path: artifacts/native-training-fixture
           retention-days: 14
+      - run: uv run --locked python -m scripts.labelstudio_smoke --batch
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -80,6 +83,8 @@ jobs:
             artifacts/labelstudio-*.json
             artifacts/labelstudio-failure*
             artifacts/labelstudio-sync-*.png
+            artifacts/batch-workflow.json
+            artifacts/batch-*.png
             docs/evidence
           retention-days: 14
   lerobot:
@@ -148,6 +153,9 @@ jobs:
           ROBO_NATIVE_EXPORT_FIXTURE: artifacts/droid-native-fixture
       - run: uv sync --locked --project integrations/lerobot
       - run: uv run --locked --project integrations/lerobot python -m integrations.lerobot.verify_droid data/local/droid-converted artifacts/droid-native-fixture artifacts/droid-lerobot
+      - run: uv run --locked python -m scripts.labelstudio_smoke --batch --source data/local/droid-converted/source.json
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
       # Verification metadata only. No dataset bytes, video, database or session upload.
       - uses: actions/upload-artifact@v4
         if: always()
@@ -156,5 +164,6 @@ jobs:
           path: |
             artifacts/droid-lerobot.json
             artifacts/droid-browser.json
+            artifacts/batch-workflow.json
             data/local/droid-converted/conversion.json
           retention-days: 14

@@ -29,6 +29,8 @@ After native Submit/Update, use the [approval workflow](docs/native-approval.md)
 
 ## Ownership
 
+For several episodes, the [batch workflow](docs/batch-workflow.md) runs import and suggestions together, reports failed inputs and creates a native Label Studio queue. Reruns recover interrupted work; explicit approval still controls export.
+
 ```mermaid
 flowchart LR
     A[Video + explicit source clock basis] --> B[Robotics alignment / provenance bridge]
@@ -47,7 +49,7 @@ flowchart LR
 | Mature review UI | Native Video, TimelineLabels and synchronized TimeSeries; project theme uses supported Style/View configuration |
 | SDK bridge | Actual project/task/prediction import, correction, native JSON export and trusted task/source/proxy validation exercised |
 | Timing/approval | Explicit accept/reject with revision freshness, pinned native provenance and checked new exports. Native `lead_time` is retained; active human time stays null and is excluded from efficiency estimates |
-| Curation/evaluation | Transparent ranking, coverage and evaluation machinery from the prototype remain reusable; integration with Label Studio task scheduling is pending |
+| Curation/evaluation | Resumable batch intake, per-input failure reports, native priority queue and explicit review/export; workload counts remain separate from human-efficiency measurements |
 | Training format | Official LeRobot 0.6.1 create/finalize/load and DataLoader roundtrip on synthetic and real DROID native exports; explicit schema, causal alignment and hashes |
 | Real data | One official DROID episode downloaded and decoded: 119 steps, three cameras checked, one selected view reviewed/exported; inferred 15 Hz timing retained |
 | MLX / PI family | [π₀.₅ action expert](docs/mlx.md) with a frozen official encoder; CPU loss/gradient/update/resume checks pass on small models. Full pretrained and Apple runs remain open |
