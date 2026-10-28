@@ -232,6 +232,7 @@ async function review() {
   await expect(
     page.getByPlaceholder("Evidence, corrections, and uncertainty"),
   ).toBeEnabled();
+  await waitForVideo();
   await page.locator(".episode-title").scrollIntoViewIfNeeded();
   await page.screenshot({
     path: "docs/evidence/labelstudio-native-desktop.png",
@@ -300,12 +301,33 @@ async function review() {
     )
     .toContain(note);
   const persisted = await (await page.request.get(taskURL)).json();
+  expect(
+    persisted.annotations[0].result.find((r) => r.from_name === "decision_note")
+      .value.text,
+  ).toEqual([note]);
   const first = persisted.annotations[0].result.find(
     (r) => r.id === "segment-0",
   );
   expect(first.value.ranges).toEqual([{ start: 1, end: 6 }]);
   await page.reload();
-  await expect(page.getByText(note, { exact: true })).toBeVisible();
+  const savedTab = page
+    .locator(
+      `.lsf-annotation-button[data-annotation-id="${persisted.annotations[0].id}"]`,
+    )
+    .filter({
+      hasNot: page.locator(".lsf-annotation-button__userpic_prediction"),
+    });
+  await savedTab.waitFor({ state: "visible", timeout: 30000 });
+  await savedTab.click();
+  await expect(savedTab).toHaveClass(/lsf-annotation-button_selected/);
+  await waitForVideo();
+  await expect(
+    page.getByPlaceholder("Evidence, corrections, and uncertainty"),
+  ).toBeEnabled();
+  // TextArea with Enter stores submitted text as a result; its input is blank.
+  await expect(
+    page.locator("#label-studio-dm").getByText(note, { exact: true }),
+  ).toBeVisible({ timeout: 20000 });
   await page.locator(".lsf-tree__node_type_timelineregion").first().click();
   await expect(
     page.getByRole("spinbutton", { name: "End frame", exact: true }),
@@ -365,8 +387,8 @@ try {
     review(),
     new Promise((_, reject) => {
       deadline = setTimeout(
-        () => reject(new Error("Native review exceeded 75 seconds")),
-        75000,
+        () => reject(new Error("Native review exceeded 120 seconds")),
+        120000,
       );
     }),
   ]);
