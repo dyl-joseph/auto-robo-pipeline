@@ -11,7 +11,12 @@ import tempfile
 from pathlib import Path
 
 
-def run(directory: Path):
+def run(directory: Path, real_source: Path | None = None):
+    real = real_source is not None
+    evidence_prefix = "droid" if real else "labelstudio"
+    evidence_kind = "real_droid_automated_integration" if real else "synthetic_fixture"
+    expected_outcome = "unknown" if real else "failure"
+    expected_quality = ["incomplete"] if real else ["recovery"]
     data = directory / "labelstudio"
     data.mkdir()
     values = {
@@ -90,41 +95,51 @@ def run(directory: Path):
     )
     from robo.store import Store
 
-    episodes = make_demo(directory / "robotics", count=1)
     store = Store(directory / "robotics")
     # Deliberately missing source frames: review boundaries remain on a known grid,
     # and exported evidence must expose the gap in the measured source clock.
     import subprocess
 
-    sources = store.root / "demo_sources"
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-v",
-            "error",
-            "-i",
-            str(sources / "tabletop-0.mp4"),
-            "-vf",
-            "select=not(eq(n\\,5)+eq(n\\,6))",
-            "-fps_mode",
-            "vfr",
-            "-c:v",
-            "libx264",
-            "-threads",
-            "1",
-            str(sources / "irregular.mp4"),
-        ],
-        check=True,
-        timeout=30,
-    )
-    source = json.loads((sources / "source-0.json").read_text())
-    source["video"] = "irregular.mp4"
-    source["source_id"] += "-vfr"
-    source["provenance"] += "; deliberately dropped source frames 5/6 for VFR verification"
-    atomic_json(sources / "irregular.json", source)
-    episodes = [import_episode(sources / "irregular.json", store)]
+    if real:
+        from robo.droid import RELEASE
+
+        source = json.loads(real_source.read_text())
+        assert source["data_kind"] == "real" and source["release"] == RELEASE
+        assert source["video_timing"] == "inferred_nominal_fps"
+        episodes = [import_episode(real_source, store)]
+    else:
+        make_demo(directory / "robotics", count=1)
+        sources = store.root / "demo_sources"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-i",
+                str(sources / "tabletop-0.mp4"),
+                "-vf",
+                "select=not(eq(n\\,5)+eq(n\\,6))",
+                "-fps_mode",
+                "vfr",
+                "-c:v",
+                "libx264",
+                "-threads",
+                "1",
+                str(sources / "irregular.mp4"),
+            ],
+            check=True,
+            timeout=30,
+        )
+        source = json.loads((sources / "source-0.json").read_text())
+        source["video"] = "irregular.mp4"
+        source["source_id"] += "-vfr"
+        source["provenance"] += "; deliberately dropped source frames 5/6 for VFR verification"
+        atomic_json(sources / "irregular.json", source)
+        episodes = [import_episode(sources / "irregular.json", store)]
     suggest(store, episodes[0]["id"])
     bundle = task_bundle(store, episodes[0]["id"])
+    if real:
+        bundle["task"]["data"]["provenance"] += " · automated integration check; not human review"
     # Local files are beneath the fixture's document root, not the filesystem root.
     for field in ("video",):
         bundle["task"]["data"][field] = bundle["task"]["data"][field].replace("?d=", "?d=robotics/")
@@ -188,9 +203,9 @@ def run(directory: Path):
     assert not Token.objects.filter(user=user).exists()
     Path("artifacts").mkdir(exist_ok=True)
     atomic_json(
-        Path("artifacts/labelstudio-smoke.json"),
+        Path(f"artifacts/{evidence_prefix}-smoke.json"),
         {
-            "evidence_kind": "synthetic_fixture",
+            "evidence_kind": evidence_kind,
             "label_studio": "1.23.2",
             "sdk": "2.1.2",
             "project_id": project_id,
@@ -201,7 +216,7 @@ def run(directory: Path):
             "api_credentials": (
                 "no persistent credential; SDK session; export fixture token revoked"
             ),
-            "real_droid": False,
+            "real_droid": real,
             "frame_semantics_browser_verified": False,
         },
     )
@@ -236,6 +251,10 @@ def run(directory: Path):
                 "LS_FIXTURE_PROJECT": str(project_id),
                 "LS_FIXTURE_TASK": str(browser_task_id),
                 "LS_FIXTURE_SEGMENTS": str(len(proposed)),
+                "LS_FIXTURE_REAL_DROID": "1" if real else "0",
+                "LS_FIXTURE_TITLE": episodes[0]["task"],
+                "LS_FIXTURE_CHANNELS": str(len(bundle["proxy"]["columns"])),
+                "LS_FIXTURE_FPS": str(bundle["proxy"]["fps"]),
                 "PLAYWRIGHT_BROWSERS_PATH": os.environ.get(
                     "PLAYWRIGHT_BROWSERS_PATH", str(Path(".cache/playwright").resolve())
                 ),
@@ -317,16 +336,25 @@ def run(directory: Path):
                 bundle["proxy"],
             )
             first = snapshot["annotations"][0]["segments"][0]
-            assert first == {"start_s": 0, "end_s": 0.5, "label": "hold"}
+            assert first == {
+                "start_s": 0,
+                "end_s": 6 / bundle["proxy"]["fps"],
+                "label": proposed[0]["value"]["timelinelabels"][0],
+            }
             boundary = snapshot["annotations"][0]["boundary_evidence"][0]["end"]
             assert not boundary["is_measured_source_boundary"]
-            assert boundary["source_bracket_s"] == [4 / 12, 7 / 12]
-            assert boundary["source_bracket_width_s"] == 3 / 12
+            if real:
+                assert boundary["source_video_timing"] == "inferred_nominal_fps"
+                assert boundary["is_source_frame_boundary"]
+                assert boundary["source_bracket_width_s"] == 0
+            else:
+                assert boundary["source_bracket_s"] == [4 / 12, 7 / 12]
+                assert boundary["source_bracket_width_s"] == 3 / 12
             assert not Token.objects.filter(user=user).exists()
-            atomic_json(Path("artifacts/labelstudio-native-snapshot.json"), snapshot)
-            evidence = json.loads(Path("artifacts/labelstudio-smoke.json").read_text())
+            atomic_json(Path(f"artifacts/{evidence_prefix}-native-snapshot.json"), snapshot)
+            evidence = json.loads(Path(f"artifacts/{evidence_prefix}-smoke.json").read_text())
             evidence.update(frame_semantics_browser_verified=True, native_export_boundary=first)
-            atomic_json(Path("artifacts/labelstudio-smoke.json"), evidence)
+            atomic_json(Path(f"artifacts/{evidence_prefix}-smoke.json"), evidence)
             print(
                 "Native temporal edit -> reload -> SDK export -> "
                 "review grid and measured source brackets passed"
@@ -342,8 +370,8 @@ def run(directory: Path):
             draft = bridge.refresh(
                 episode_id, native_id, 0, "fixture-importer", "Native GUI correction"
             )
-            assert draft["outcome"] == "failure"
-            assert draft["quality_flags"] == ["recovery"]
+            assert draft["outcome"] == expected_outcome
+            assert draft["quality_flags"] == expected_quality
             assert draft["native"]["reviewer_evidence"]
             assert draft["active_s"] is None and draft["wall_s"] is None
             assert bridge.refresh(episode_id, native_id, 1, "fixture-importer", "Repeat") == draft
@@ -357,7 +385,7 @@ def run(directory: Path):
             record = validate_export(release)[0]
             assert record["annotation"] == accepted
             assert record["annotation"]["native"]["boundary_evidence"][0]["end"] == boundary
-            # Transfer only synthetic media/manifests and the accepted artifact to the
+            # Transfer only source media/manifests and the accepted artifact to the
             # isolated LeRobot runtime. Never copy the application's database/session.
             if fixture_path := os.environ.get("ROBO_NATIVE_EXPORT_FIXTURE"):
                 fixture_path = Path(fixture_path)
@@ -389,9 +417,9 @@ def run(directory: Path):
                 bridge.refresh(episode_id, native_id, 4, "fixture-importer", "Repeat") == rejected
             )
             atomic_json(
-                Path("artifacts/labelstudio-approval.json"),
+                Path(f"artifacts/{evidence_prefix}-approval.json"),
                 {
-                    "evidence_kind": "synthetic_fixture",
+                    "evidence_kind": evidence_kind,
                     "native_draft": draft,
                     "accepted_revision": accepted,
                     "export": result,
@@ -411,12 +439,21 @@ def run(directory: Path):
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--browser", action="store_true")
+    parser.add_argument("--sync-contract", action="store_true")
+    parser.add_argument("--source", type=Path, help="Converted local real DROID source.json")
+    args = parser.parse_args()
+    if args.source and (not args.browser or args.sync_contract):
+        parser.error("real DROID --source requires --browser and excludes --sync-contract")
     Path("artifacts").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix="labelstudio-", dir=Path("artifacts").resolve()
     ) as temporary:
         try:
-            run(Path(temporary))
+            run(Path(temporary), args.source)
         except Exception as exc:
             # API exceptions can contain session cookies in their headers.
             if hasattr(exc, "status_code"):
