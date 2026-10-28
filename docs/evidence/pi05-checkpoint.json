@@ -1,0 +1,16 @@
+{
+  "repository": "lerobot/pi05_base",
+  "revision": "22c30e5b34f9e7ab738b1b34fc2fc5ecfe2d28f0",
+  "gated": false,
+  "license": "gemma",
+  "source": "https://huggingface.co/lerobot/pi05_base/resolve/22c30e5b34f9e7ab738b1b34fc2fc5ecfe2d28f0/model.safetensors",
+  "full_file_bytes": 14467165872,
+  "downloaded_weight_bytes": 128,
+  "total_range_bytes": 135920,
+  "header_sha256": "c04b846b2d2b043945649a1a36b94a1798fa85c2ac0c1eeb3c63ea9b356b0215",
+  "bias_sha256": "5b63d1c9d6a3f4958a34e11c200c4d89a1eb72b2d93cc940b5940deb6d48f16f",
+  "compatible_expert_tensor_shapes": 208,
+  "expert_parameters": 430098464,
+  "bias_mlx_roundtrip_exact": true,
+  "full_model_loaded": false
+}

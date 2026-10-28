@@ -1,0 +1,48 @@
+{
+  "kind": "small_official_pi05_frozen_encoder_mlx_action_expert",
+  "versions": {
+    "mlx": "0.32.4",
+    "lerobot": "0.6.1",
+    "torch": "2.11.0+cpu",
+    "transformers": "5.5.4"
+  },
+  "platform": "Linux",
+  "architecture": "x86_64",
+  "mlx_device": "Device(cpu, 0)",
+  "metal_available": false,
+  "config": {
+    "width": 32,
+    "depth": 2,
+    "mlp_dim": 64,
+    "heads": 8,
+    "kv_heads": 1,
+    "head_dim": 8,
+    "action_dim": 8,
+    "horizon": 3,
+    "min_period": 0.004,
+    "max_period": 4.0
+  },
+  "trainable_parameters": 40008,
+  "gradient_tensors_compared": 32,
+  "reference_loss": 2.6077864170074463,
+  "mlx_loss": 2.6077866554260254,
+  "loss_absolute_error": 2.384185791015625e-07,
+  "gradient_max_absolute_error": 2.551823854446411e-07,
+  "sample_max_absolute_error": 2.384185791015625e-07,
+  "training_steps": [
+    {
+      "loss": 2.321800470352173,
+      "gradient_norm": 3.147716999053955,
+      "step": 1
+    },
+    {
+      "loss": 2.5406291484832764,
+      "gradient_norm": 3.3148133754730225,
+      "step": 2
+    }
+  ],
+  "checkpoint_next_update_exact": true,
+  "elapsed_seconds": 0.16027819999999338,
+  "pretrained_full_model_run": false,
+  "robot_policy_evaluation": false
+}
