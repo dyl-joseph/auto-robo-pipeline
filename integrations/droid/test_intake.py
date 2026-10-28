@@ -254,3 +254,52 @@ def test_output_lock_and_disjoint_source(tmp_path):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with pytest.raises(ValueError, match="Another intake"):
             run(source, output)
+
+
+@pytest.mark.parametrize("replaced", ["episodes", "conversion.json"])
+def test_resume_rejects_output_symlinks_before_reading_outside(tmp_path, monkeypatch, replaced):
+    source = generated_source(tmp_path / "source", lengths=(1,))
+    output = tmp_path / "out"
+    run(source, output)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    path = (
+        output / "episodes"
+        if replaced == "episodes"
+        else next((output / "episodes").glob("*/conversion.json"))
+    )
+    target = outside / path.name
+    path.rename(target)
+    path.symlink_to(target, target_is_directory=target.is_dir())
+    before = tree_hashes(outside)
+    real_hash = module.file_hash
+
+    def guarded_hash(candidate):
+        if candidate.resolve().is_relative_to(outside):
+            pytest.fail("resume read outside its output through a symlink")
+        return real_hash(candidate)
+
+    monkeypatch.setattr(module, "file_hash", guarded_hash)
+    with pytest.raises(ValueError, match="symlink"):
+        run(source, output)
+    assert tree_hashes(outside) == before
+
+
+def test_replaced_episodes_parent_cannot_receive_publication(tmp_path, monkeypatch):
+    source = generated_source(tmp_path / "source", lengths=(1,))
+    output = tmp_path / "out"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    real_write = module.write_episode
+
+    def replace_parent(*args, **kwargs):
+        episodes = output / "episodes"
+        episodes.rmdir()
+        episodes.symlink_to(outside, target_is_directory=True)
+        return real_write(*args, **kwargs)
+
+    monkeypatch.setattr(module, "write_episode", replace_parent)
+    with pytest.raises(ValueError, match="owned directory"):
+        run(source, output)
+    assert list(outside.iterdir()) == []
+    assert json.loads((output / "intake.json").read_text())["summary"]["published_episodes"] == 0
