@@ -6,6 +6,29 @@ on:
 permissions:
   contents: read
 jobs:
+  mlx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      HF_HUB_OFFLINE: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: uv sync --locked --project integrations/mlx_pi
+      - run: uv run --locked --project integrations/mlx_pi python -m pytest -q integrations/mlx_pi
+      - run: uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlx-pi05-evidence
+          path: artifacts/mlx-pi05.json
+          retention-days: 14
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
