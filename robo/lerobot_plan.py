@@ -1,6 +1,7 @@
 """Explicit, causal resampling of an accepted source version for LeRobot."""
 
 import math
+from fractions import Fraction
 from typing import Literal
 
 import numpy as np
@@ -62,9 +63,15 @@ def plan_episode(record: dict, schema: TrainingSchema) -> dict:
     if not math.isfinite(duration) or not 0 < duration <= 300:
         raise ValueError("training conversion supports episodes up to 300 seconds")
     grid = np.arange(math.ceil(duration * schema.fps - 1e-9), dtype=np.float64) / schema.fps
-    video_indices, video_ages = previous_samples(
-        episode["timestamps_s"], grid, schema.max_video_age_s, "video"
-    )
+    # ffprobe's decimal pts_time is rounded to six places. Use integer PTS/time_base
+    # so a 1/12s frame is not spuriously treated as future at its own grid point.
+    time_base = Fraction(episode["time_base"])
+    pts = episode["original_pts"]
+    if time_base <= 0 or len(pts) != len(episode["timestamps_s"]):
+        raise ValueError("invalid original PTS/time-base mapping")
+    exact_seconds = [float(p * time_base) for p in pts]
+    normalized = [float((p - pts[0]) * time_base) for p in pts]
+    video_indices, video_ages = previous_samples(normalized, grid, schema.max_video_age_s, "video")
     streams = {s["name"]: Stream.model_validate(s) for s in episode["streams"]}
     features, alignment = {}, {}
     for modality, key in (("state", "observation.state"), ("action", "action")):
@@ -109,7 +116,7 @@ def plan_episode(record: dict, schema: TrainingSchema) -> dict:
             "timestamps_s": grid.tolist(),
             "video_frame_indices": video_indices.tolist(),
             "video_original_pts": [episode["original_pts"][i] for i in video_indices],
-            "video_original_pts_s": [episode["original_pts_s"][i] for i in video_indices],
+            "video_original_pts_s": [exact_seconds[i] for i in video_indices],
             "video_age_s": video_ages.tolist(),
             "omitted_source_frames": len(episode["timestamps_s"]) - len(set(video_indices)),
             "repeated_source_frames": len(grid) - len(set(video_indices)),

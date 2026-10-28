@@ -39,6 +39,7 @@ def training_case():
     record = {
         "episode": {
             "duration_s": 0.4,
+            "time_base": "1/10",
             "timestamps_s": [0, 0.1, 0.2, 0.3],
             "original_pts": [100, 101, 102, 103],
             "original_pts_s": [10, 10.1, 10.2, 10.3],
@@ -113,8 +114,9 @@ def test_required_data_never_guessed_or_padded(training_case, problem):
 def test_vfr_held_frames_gaps_and_explicit_coarse_grid(training_case):
     record, schema = training_case
     record["episode"].update(
+        time_base="1/20",
         timestamps_s=[0, 0.05, 0.1, 0.3],
-        original_pts=[100, 101, 102, 106],
+        original_pts=[200, 201, 202, 206],
         original_pts_s=[10, 10.05, 10.1, 10.3],
     )
     plan = plan_episode(record, schema)
@@ -134,6 +136,23 @@ def test_grid_tail_and_no_floating_point_future_leakage(training_case):
     assert plan["alignment"]["duration_rounding_s"] == pytest.approx(0.05)
     indices, _ = previous_samples([0, 0.100001], np.array([0.1]), 0.11, "action")
     assert indices.tolist() == [0]
+
+
+def test_integer_pts_prevents_ffprobe_rounding_frame_loss(training_case):
+    record, schema = training_case
+    record["episode"].update(
+        duration_s=1 / 3,
+        time_base="1/12288",
+        original_pts=[0, 1024, 2048, 3072],
+        original_pts_s=[0, 0.083333, 0.166667, 0.25],
+        timestamps_s=[0, 0.083333, 0.166667, 0.25],
+    )
+    for stream in record["episode"]["streams"]:
+        stream["tolerance_s"] = 1
+    plan = plan_episode(record, schema.model_copy(update={"fps": 12}))
+    assert plan["video_indices"].tolist() == [0, 1, 2, 3]
+    assert plan["alignment"]["video_age_s"] == [0, 0, 0, 0]
+    assert plan["alignment"]["omitted_source_frames"] == 0
 
 
 @pytest.mark.parametrize(
