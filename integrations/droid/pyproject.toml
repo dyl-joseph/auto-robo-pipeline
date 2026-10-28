@@ -1,7 +1,7 @@
 [project]
 name = "robo-droid-runtime"
 version = "0.1.0"
-description = "Isolated official TensorFlow Datasets decoder for one DROID sample"
+description = "Isolated official TensorFlow Datasets decoder for local DROID episodes"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "tensorflow-cpu==2.20.0; sys_platform == 'linux'",
@@ -9,6 +9,9 @@ dependencies = [
     "tensorflow-datasets==4.9.9",
     "pydantic==2.14.1",
     "numpy==2.2.6",
+    # TFDS 4.9.9 still reads FieldDescriptor.label, removed in protobuf 7.
+    "protobuf>=6.31.1,<7",
+    "pytest==9.2.0",
 ]
 
 [tool.uv]

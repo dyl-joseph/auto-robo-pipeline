@@ -1,8 +1,9 @@
 """Validate the pinned DROID sample and its explicit feature mapping."""
 
 import numpy as np
+from pydantic import Field
 
-from robo.core import Source, digest
+from robo.core import Contract, Source, digest
 
 RELEASE = "droid_100/1.0.0"
 PREFIX = "robotics/droid_100/1.0.0/"
@@ -40,18 +41,30 @@ FILES = {
 }
 
 
-def source_from_steps(steps: list[dict], metadata: dict, camera: str) -> dict:
+class LocalOrigin(Contract):
+    release: str = Field(min_length=1, max_length=200)
+    shard: str = Field(pattern=r"^[A-Za-z0-9_.-]+$")
+    shard_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    features_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    dataset_info_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    record_index: int = Field(ge=0)
+    generated_fixture: bool = False
+
+
+def source_from_steps(
+    steps: list[dict], metadata: dict, camera: str, origin: LocalOrigin | None = None
+) -> dict:
     """Map explicitly named position fields; never guess generic action semantics."""
     if camera not in CAMERAS:
         raise ValueError("unknown DROID camera")
     if not 2 <= len(steps) <= FPS * 300:
-        raise ValueError("DROID pilot requires 2–4500 steps")
+        raise ValueError("DROID episode requires 2–4500 steps")
     for key, expected in (("is_first", 0), ("is_last", len(steps) - 1)):
         if [i for i, s in enumerate(steps) if s[key]] != [expected]:
             raise ValueError(f"invalid RLDS {key} boundaries")
     instructions = {s["language_instruction"] for s in steps}
     if len(instructions) != 1 or not next(iter(instructions)).strip():
-        raise ValueError("pilot requires one nonempty primary instruction per episode")
+        raise ValueError("requires one nonempty primary instruction per episode")
     streams = []
     for group, modality in (("observation", "state"), ("action_dict", "action")):
         for field, width, units in (
@@ -80,28 +93,48 @@ def source_from_steps(steps: list[dict], metadata: dict, camera: str) -> dict:
     if not isinstance(original, str) or not original.endswith("/trajectory.h5"):
         raise ValueError("unexpected DROID original path metadata")
     session = original.rsplit("/", 2)[0]
-    return Source.model_validate(
-        {
-            "source_id": f"{SHARD}:record-0:{camera}",
-            "release": RELEASE,
-            "task": next(iter(instructions)),
-            "session": "droid-day-" + digest(session)[:24],
-            "video": "video.mp4",
-            "video_timing": "inferred_nominal_fps",
-            "license": "CC-BY-4.0",
-            "license_url": LICENSE,
-            "data_kind": "real",
-            "provenance": (
-                f"{ATTRIBUTION}; {DOCS}; gs://gresearch/{PREFIX}{SHARD}; "
-                f"generation {FILES[SHARD]['generation']}; SHA256 {FILES[SHARD]['sha256']}; "
-                f"record 0, {len(steps)} steps, selected {camera}. "
+    source = {
+        "source_id": f"{SHARD}:record-0:{camera}",
+        "release": RELEASE,
+        "task": next(iter(instructions)),
+        "session": "droid-day-" + digest(session)[:24],
+        "video": "video.mp4",
+        "video_timing": "inferred_nominal_fps",
+        "license": "CC-BY-4.0",
+        "license_url": LICENSE,
+        "data_kind": "real",
+        "provenance": (
+            f"{ATTRIBUTION}; {DOCS}; gs://gresearch/{PREFIX}{SHARD}; "
+            f"generation {FILES[SHARD]['generation']}; SHA256 {FILES[SHARD]['sha256']}; "
+            f"record 0, {len(steps)} steps, selected {camera}. "
+            "RGB decoded by official TFDS then H.264 CRF18/yuv420p: lossy derivative. "
+            "All numeric fields, instructions, metadata and per-camera RGB hashes retained "
+            "in the local rlds-episode.json. Generic action is not used for training. " + CLOCK
+        ),
+        "streams": streams,
+    }
+    if origin is not None:
+        source.update(
+            source_id="local-rlds-" + digest([origin.model_dump(), camera])[:40],
+            release=origin.release,
+            data_kind="synthetic" if origin.generated_fixture else "real",
+            provenance=(
+                (
+                    "Generated DROID-schema fixture. "
+                    if origin.generated_fixture
+                    else f"{ATTRIBUTION}; {DOCS}. "
+                    "User-supplied local DROID RLDS; origin not authenticated. "
+                )
+                + f"Shard {origin.shard}; SHA256 {origin.shard_sha256}; "
+                f"features.json SHA256 {origin.features_sha256}; "
+                f"dataset_info.json SHA256 {origin.dataset_info_sha256}; "
+                f"record {origin.record_index}, {len(steps)} steps, selected {camera}. "
                 "RGB decoded by official TFDS then H.264 CRF18/yuv420p: lossy derivative. "
-                "All numeric fields, instructions, metadata and per-camera RGB hashes retained "
-                "in the local rlds-episode.json. Generic action is not used for training. " + CLOCK
+                "All non-image fields and per-camera RGB hashes retained in rlds-episode.json. "
+                "Generic action is not used for training. " + CLOCK
             ),
-            "streams": streams,
-        }
-    ).model_dump()
+        )
+    return Source.model_validate(source).model_dump()
 
 
 def training_schema() -> dict:
