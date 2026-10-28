@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from robo.core import Edit, canonical, validate_segments
+from robo.core import Edit, canonical, digest, validate_segments
 
 
 class Conflict(ValueError):
@@ -25,6 +25,8 @@ class Store:
                 CREATE TABLE IF NOT EXISTS revisions (
                     episode_id TEXT NOT NULL REFERENCES episodes(id), revision INTEGER NOT NULL,
                     document TEXT NOT NULL, PRIMARY KEY(episode_id, revision));
+                CREATE TABLE IF NOT EXISTS native_bindings (
+                    episode_id TEXT PRIMARY KEY REFERENCES episodes(id), document TEXT NOT NULL);
             """)
 
     @contextmanager
@@ -67,7 +69,31 @@ class Store:
         history = self.history(episode_id)
         return history[-1] if history else {"revision": 0, "status": "unreviewed", "segments": []}
 
-    def commit(self, episode_id: str, edit: Edit, action: str = "save") -> dict:
+    def native_binding(self, episode_id: str) -> dict | None:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT document FROM native_bindings WHERE episode_id=?", (episode_id,)
+            ).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def register_native(self, episode_id: str, binding: dict) -> dict:
+        self.episode(episode_id)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT document FROM native_bindings WHERE episode_id=?", (episode_id,)
+            ).fetchone()
+            if row and json.loads(row[0]) != binding:
+                raise Conflict("episode already has a different native binding")
+            db.execute(
+                "INSERT OR IGNORE INTO native_bindings VALUES (?, ?)",
+                (episode_id, canonical(binding).decode()),
+            )
+        return binding
+
+    def commit(
+        self, episode_id: str, edit: Edit, action: str = "save", *, native: dict | None = None
+    ) -> dict:
         if action not in {"save", "accept", "uncertain", "exclude", "restore"}:
             raise ValueError("unsupported review action")
         episode = self.episode(episode_id)
@@ -83,6 +109,14 @@ class Store:
             active_perception(self, episode_id, body["perception_run"])
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            binding = db.execute(
+                "SELECT document FROM native_bindings WHERE episode_id=?", (episode_id,)
+            ).fetchone()
+            if binding:
+                if native is None or native.get("binding_hash") != digest(json.loads(binding[0])):
+                    raise ValueError("native reviews require the authenticated freshness bridge")
+            elif native is not None:
+                raise ValueError("register a trusted native binding first")
             row = db.execute(
                 "SELECT document FROM revisions WHERE episode_id=? ORDER BY revision DESC LIMIT 1",
                 (episode_id,),
@@ -92,6 +126,31 @@ class Store:
                 raise Conflict(
                     f"Stale revision: reload revision {previous['revision']} before saving"
                 )
+            if native and previous.get("native"):
+                prior = previous["native"]
+                origins = [
+                    json.loads(row[0]).get("native")
+                    for row in db.execute(
+                        "SELECT document FROM revisions WHERE episode_id=?", (episode_id,)
+                    )
+                ]
+                for known in origins:
+                    if not known or known["annotation_id"] != native["annotation_id"]:
+                        continue
+                    if native["updated_at"] < known["updated_at"]:
+                        raise Conflict("native annotation timestamp regressed")
+                    if (
+                        native["updated_at"] == known["updated_at"]
+                        and native["snapshot_hash"] != known["snapshot_hash"]
+                    ):
+                        raise Conflict("native content changed without a new revision timestamp")
+                same = native["snapshot_hash"] == prior["snapshot_hash"]
+                if action == "save" and same:
+                    return previous
+                if action in {"accept", "exclude"} and not same:
+                    raise Conflict("refresh changed native content as a new draft before deciding")
+                if action == previous["action"] and same and action in {"accept", "exclude"}:
+                    return previous
             if action == "accept":
                 if not body["segments"] or previous["status"] not in {
                     "draft",
@@ -124,6 +183,8 @@ class Store:
                 "recorded_at": datetime.now(UTC).isoformat(),
                 "timing_source": "client_reported",
             }
+            if native:
+                revision.update(native=native, timing_source="native_active_time_unmeasured")
             db.execute(
                 "INSERT INTO revisions VALUES (?, ?, ?)",
                 (episode_id, revision["revision"], canonical(revision).decode()),

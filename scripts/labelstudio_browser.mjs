@@ -210,11 +210,6 @@ async function review() {
     ),
   );
   expect(initialTask.predictions).toHaveLength(1);
-  await page.locator(".episode-title").scrollIntoViewIfNeeded();
-  await page.screenshot({
-    path: "docs/evidence/labelstudio-native-desktop.png",
-    fullPage: false,
-  });
   await page
     .locator(".lsf-annotation-button")
     .filter({ has: page.locator(".lsf-annotation-button__userpic_prediction") })
@@ -231,6 +226,11 @@ async function review() {
   await expect(
     page.getByPlaceholder("Evidence, corrections, and uncertainty"),
   ).toBeEnabled();
+  await page.locator(".episode-title").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "docs/evidence/labelstudio-native-desktop.png",
+    fullPage: false,
+  });
   await writeFile(
     "artifacts/labelstudio-initial-aria.txt",
     await page.locator("body").ariaSnapshot(),
@@ -262,6 +262,8 @@ async function review() {
     .toBeGreaterThan(1 / 12);
   const note =
     "Automated native Label Studio GUI correction; synthetic fixture, not human study evidence.";
+  await page.getByRole("radio", { name: /^failure\[/ }).check();
+  await page.getByRole("checkbox", { name: /^recovery\[/ }).check();
   await page
     .getByPlaceholder("Evidence, corrections, and uncertainty")
     .fill(note);
@@ -341,6 +343,8 @@ async function review() {
       sensor_seek_sync: true,
       native_annotation_update: true,
       native_temporal_edit: { start: 1, end: 6 },
+      native_outcome: "failure",
+      native_quality: ["recovery"],
       mutation_trace: mutations,
       script_errors: errors,
     }),

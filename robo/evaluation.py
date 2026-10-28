@@ -191,9 +191,20 @@ def study_metrics(protocol: dict) -> dict:
                 {"episode_id": row["id"], **temporal_metrics(row["reviewer_a"], row["reviewer_b"])}
             )
     conditions = {}
+    missing_timing = []
     rng = np.random.default_rng(protocol.get("seed", 7))
     for condition in ("manual", "assisted"):
-        rows = [r for r in episodes if r.get("condition") == condition and "review_history" in r]
+        candidates = [
+            r for r in episodes if r.get("condition") == condition and "review_history" in r
+        ]
+        rows = []
+        for row in candidates:
+            if not row["review_history"] or any(
+                e.get("active_s") is None or e.get("wall_s") is None for e in row["review_history"]
+            ):
+                missing_timing.append(row["id"])
+            else:
+                rows.append(row)
         if not rows:
             continue
         for row in rows:
@@ -248,6 +259,7 @@ def study_metrics(protocol: dict) -> dict:
     return {
         "evidence_kind": evidence,
         "conditions": conditions,
+        "episodes_with_unmeasured_time": sorted(missing_timing),
         "time_reduction_point_estimate": reduction,
         "agreement_at_iou_0.5": agreements or None,
         "timing_basis": "Sum of ALL review events, including corrections, rejection and acceptance",

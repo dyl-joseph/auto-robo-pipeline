@@ -2,9 +2,9 @@
 
 A local robotics data pipeline built around **Label Studio**, with project code focused on source alignment, provenance, assisted-review integration and evaluation.
 
-![Native Label Studio review — synthetic fixture](docs/evidence/labelstudio-native-desktop.png)
+![Native Label Studio review — synthetic fixture](docs/evidence/labelstudio-native.png)
 
-The first ecosystem migration slice is implemented: the real Label Studio application and official SDK import video/sensor tasks and predictions, save corrections, and export annotations against trusted source bindings. The earlier bespoke editor is a development prototype, available only through `--legacy-editor`. It is being superseded rather than maintained as a second primary product.
+The real Label Studio application and official SDK import video/sensor tasks and predictions, save corrections, and connect them to explicit approval and immutable accepted exports. New approvals/exports check the selected native revision and machine provenance. The earlier bespoke editor is a development prototype, available only through `--legacy-editor`; native-bound episodes cannot bypass the approval bridge through it.
 
 ## Run the native GUI
 
@@ -25,6 +25,8 @@ For this first slice, create a Label Studio project, paste `artifacts/labelstudi
 
 The demonstration contains six generated illustrated episodes, eight seconds each. Its state/action streams are generated fixtures. It validates software mechanics and does **not** satisfy the real-DROID acceptance gate or establish human annotation savings.
 
+After native Submit/Update, use the [approval workflow](docs/native-approval.md) to bind the task, refresh the chosen annotation into a draft, inspect it and explicitly accept or reject that revision. This thin CLI/SDK gate keeps dataset eligibility separate from saving an annotation. It uses existing authorized access and creates no credentials. The guide includes copyable commands and the precise freshness limitations.
+
 ## Ownership
 
 ```mermaid
@@ -34,8 +36,8 @@ flowchart LR
     C --> D[Native Label Studio video / timeline / sensor GUI]
     E[Cached prediction evidence] --> D
     D --> F[Official SDK / native JSON export]
-    F --> G[Trusted binding + immutable draft snapshot]
-    G --> H[Explicit eligibility / quality / split gates]
+    F --> G[Authenticated refresh + immutable draft]
+    G --> H[Explicit approval + fresh native check / split gates]
     H -. next integration .-> I[LeRobot loader / training dataset]
 ```
 
@@ -44,7 +46,7 @@ flowchart LR
 | Source ingest | Immutable video snapshots, measured PTS, optional streams, declared units/offsets and missing-data masks |
 | Mature review UI | Native Video, TimelineLabels and synchronized TimeSeries; project theme uses supported Style/View configuration |
 | SDK bridge | Actual project/task/prediction import, correction, native JSON export and trusted task/source/proxy validation exercised |
-| Timing/approval | Imported annotations remain drafts. Label Studio `lead_time` is not treated as measured active correction time. Native completion does not imply training eligibility |
+| Timing/approval | Explicit accept/reject with revision freshness, pinned native provenance and checked new exports. Native `lead_time` is retained; active human time stays null and is excluded from efficiency estimates |
 | Curation/evaluation | Transparent ranking, coverage and evaluation machinery from the prototype remain reusable; integration with Label Studio task scheduling is pending |
 | Training format | Existing project JSONL/Parquet consumer is tested; actual LeRobot round-trip is an open integration gate |
 | Real data | DROID acquisition blocked by the prior runtime proxy; no DROID bytes acquired |

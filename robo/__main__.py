@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -40,6 +41,28 @@ def main():
     ls_prepare.add_argument(
         "--fps", type=int, help="explicit coarser grid; default retains source frames"
     )
+    native = commands.add_parser(
+        "native-review", help="fresh native imports and explicit decisions"
+    )
+    native.add_argument("--instance", default="http://127.0.0.1:8000")
+    native_commands = native.add_subparsers(dest="native_action", required=True)
+    bind = native_commands.add_parser("bind", help="register a prepared task once")
+    bind.add_argument("bundle", type=Path, help="prepared bundle.json")
+    bind.add_argument("--project", type=int, required=True)
+    bind.add_argument("--task", type=int, required=True)
+    for name in ("refresh", "accept", "reject"):
+        action = native_commands.add_parser(name)
+        action.add_argument("episode_id")
+        action.add_argument("--expected-revision", type=int, required=True)
+        action.add_argument("--actor", required=True)
+        action.add_argument("--reason", required=True)
+        if name == "refresh":
+            action.add_argument("--annotation", type=int, required=True)
+    inspect = native_commands.add_parser("inspect", help="read immutable local review history")
+    inspect.add_argument("episode_id")
+    native_export = native_commands.add_parser("export", help="check native freshness and export")
+    native_export.add_argument("selection", type=Path)
+    native_export.add_argument("output", type=Path)
     serve = commands.add_parser("serve", help="start the primary native Label Studio GUI")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument(
@@ -66,6 +89,48 @@ def main():
             from robo.labelstudio import prepare_bundle
 
             result = prepare_bundle(store, args.episode_id, args.output, args.fps)
+        elif args.command == "native-review":
+            if args.native_action == "inspect":
+                result = {
+                    "latest": store.latest(args.episode_id),
+                    "history": store.history(args.episode_id),
+                }
+            else:
+                from label_studio_sdk import LabelStudio
+
+                from robo.native_review import NativeReviewBridge, local_instance
+
+                instance = local_instance(args.instance)
+                key = os.environ.get("LABEL_STUDIO_API_KEY")
+                if not key:
+                    raise ValueError(
+                        "set LABEL_STUDIO_API_KEY to an existing authorized credential, "
+                        "or use NativeReviewBridge with an authorized SDK session; none is created"
+                    )
+                sdk = LabelStudio(base_url=instance, api_key=key, timeout=10)
+                bridge = NativeReviewBridge(sdk, store, instance)
+                if args.native_action == "bind":
+                    result = bridge.register(
+                        json.loads(args.bundle.read_text()), args.project, args.task
+                    )
+                elif args.native_action == "refresh":
+                    result = bridge.refresh(
+                        args.episode_id,
+                        args.annotation,
+                        args.expected_revision,
+                        args.actor,
+                        args.reason,
+                    )
+                elif args.native_action == "export":
+                    result = bridge.export(json.loads(args.selection.read_text()), args.output)
+                else:
+                    result = bridge.decide(
+                        args.episode_id,
+                        args.expected_revision,
+                        args.native_action,
+                        args.actor,
+                        args.reason,
+                    )
         elif args.command == "curate":
             from robo.curation import curate
 
@@ -100,6 +165,15 @@ def main():
     except (ValueError, KeyError, OSError, subprocess.SubprocessError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
+    except Exception as exc:
+        # SDK exception bodies can include response headers; never print credentials.
+        if args.command == "native-review" and hasattr(exc, "status_code"):
+            print(
+                f"Native API request failed (HTTP {exc.status_code}); no decision recorded",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":
