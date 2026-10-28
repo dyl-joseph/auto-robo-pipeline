@@ -67,8 +67,8 @@ To review your own annotations instead of running the fixture, follow the [batch
 
 ```bash
 uv sync --locked --project integrations/mlx_pi
-uv run --locked --project integrations/mlx_pi python -m pytest -q integrations/mlx_pi
-uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.verify
+MLX_ENABLE_TF32=0 PYTORCH_ENABLE_MPS_FALLBACK=0 uv run --locked --project integrations/mlx_pi python -m pytest -q integrations/mlx_pi
+MLX_ENABLE_TF32=0 PYTORCH_ENABLE_MPS_FALLBACK=0 uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.verify --device gpu
 ```
 
-These checks use small random PI05 models on CPU and write `artifacts/mlx-pi05.json`. They cover numerical agreement, gradients, an optimizer step and checkpoint resume. The [MLX guide](mlx.md) explains how to run the explicit Metal check on the M5 Pro and what is still required for pretrained execution. This demo does not download the full checkpoint or accept a gated tokenizer agreement.
+On the Mac, these checks use small random PI05 models on MPS and MLX Metal and write `artifacts/mlx-pi05.json`. They cover numerical agreement, gradients, an optimizer step and checkpoint resume. CPU fallback is disabled. The [MLX guide](mlx.md) describes the full pretrained inference check and its local assets. This demo does not download the full checkpoint or accept a gated tokenizer agreement.

@@ -1,0 +1,448 @@
+{
+  "kind": "local_pi05_full_pipeline_synthetic_inference",
+  "assets": {
+    "config.json": {
+      "bytes": 1896,
+      "sha256": "367869712a2847c27e95c431ecb03f17bec4eee01a63995e2fb2d91940752b53"
+    },
+    "model.safetensors": {
+      "bytes": 14467165872,
+      "sha256": "0eb11ca9587678c1d2ef8cf32807c29f8ce53a2bfdfc1aa4a4c96f16fca59b0f"
+    },
+    "tokenizer.model": {
+      "bytes": 4264023,
+      "sha256": "8986bb4f423f07f8c7f70d0dbe3526fb2316056c17bae71b1ea975e77a168fc6"
+    },
+    "policy_preprocessor.json": {
+      "bytes": 1241,
+      "sha256": "be2cd1acc33229d42be0640cb55b5d5a4bb3e8d8e27ddfcdcf3f99f1fe3beaef"
+    },
+    "policy_postprocessor.json": {
+      "bytes": 567,
+      "sha256": "142c8b622aeac5c14631e057279df058d3005f616d909cfe30a04524de0b0891"
+    }
+  },
+  "loading": {
+    "source_tensor_count": 812,
+    "loaded_tensor_count": 813,
+    "strict_load": true,
+    "embedding_aliases": {
+      "paligemma_with_expert.paligemma.model.language_model.embed_tokens.weight": "paligemma_with_expert.paligemma.lm_head.weight"
+    }
+  },
+  "versions": {
+    "mlx": "0.32.4",
+    "lerobot": "0.6.1",
+    "torch": "2.11.0",
+    "transformers": "5.5.4",
+    "numpy": "2.2.6",
+    "sentencepiece": "0.2.1",
+    "protobuf": "7.36.2"
+  },
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "architecture": "arm64",
+  "mlx_device": "Device(gpu, 0)",
+  "torch_device": "mps:0",
+  "metal_available": true,
+  "mps_available": true,
+  "precision_environment": {
+    "MLX_ENABLE_TF32": "0",
+    "PYTORCH_ENABLE_MPS_FALLBACK": "0"
+  },
+  "model_compute": {
+    "encoder": "mps",
+    "reference": "mps",
+    "action_expert": "mlx.gpu"
+  },
+  "host_operations": [
+    "local checkpoint loading",
+    "official state discretization and SentencePiece tokenization",
+    "PyTorch-to-MLX tensor transfer",
+    "array checks and artifact serialization"
+  ],
+  "config": {
+    "width": 1024,
+    "depth": 18,
+    "mlp_dim": 4096,
+    "heads": 8,
+    "kv_heads": 1,
+    "head_dim": 256,
+    "action_dim": 32,
+    "horizon": 50,
+    "min_period": 0.004,
+    "max_period": 4.0
+  },
+  "seed": 7,
+  "euler_steps": 10,
+  "inputs": {
+    "raw_observation.images.base_0_rgb": {
+      "shape": [
+        3,
+        180,
+        320
+      ],
+      "dtype": "float32",
+      "sha256": "63918264d6253947017f947a2b70f743207853b494e98ad7d4ddb54b06ef979b"
+    },
+    "raw_observation.images.left_wrist_0_rgb": {
+      "shape": [
+        3,
+        180,
+        320
+      ],
+      "dtype": "float32",
+      "sha256": "0344abca0ce36274cda10a9c52c50a474008c06ada44dd02dfdeba2f3c911119"
+    },
+    "raw_observation.images.right_wrist_0_rgb": {
+      "shape": [
+        3,
+        180,
+        320
+      ],
+      "dtype": "float32",
+      "sha256": "54457baedf88f1cfa73143ea48198f63e7803d7251e922a9acfd46f35cd5eb43"
+    },
+    "raw_observation.state": {
+      "shape": [
+        32
+      ],
+      "dtype": "float32",
+      "sha256": "e365c7b7ba2492770988664cf837565c42f444f34013c955cbf52c897a67f6f7"
+    },
+    "raw_task": {
+      "shape": [],
+      "dtype": "<U35",
+      "sha256": "ae66428416160dd0dea4704287981579a987c654461d4203f1b70a736a497c88"
+    },
+    "image_0": {
+      "shape": [
+        1,
+        3,
+        224,
+        224
+      ],
+      "dtype": "float32",
+      "sha256": "14e8a5e116a269ab758dd296c66e72fb9d3fb744f81eb45c3ea6ff6fb5ab054a"
+    },
+    "image_1": {
+      "shape": [
+        1,
+        3,
+        224,
+        224
+      ],
+      "dtype": "float32",
+      "sha256": "5732fbffaf78b42d3bb13de4cc29733105fb6f19bb6934ebb8036c0f78c31e4e"
+    },
+    "image_2": {
+      "shape": [
+        1,
+        3,
+        224,
+        224
+      ],
+      "dtype": "float32",
+      "sha256": "93823b09adf44d507f7b49fb8419e72c80715c0bc42b0a8665cce5892310bff4"
+    },
+    "image_mask_0": {
+      "shape": [
+        1
+      ],
+      "dtype": "bool",
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+    },
+    "image_mask_1": {
+      "shape": [
+        1
+      ],
+      "dtype": "bool",
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+    },
+    "image_mask_2": {
+      "shape": [
+        1
+      ],
+      "dtype": "bool",
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+    },
+    "normalized_state": {
+      "shape": [
+        1,
+        32
+      ],
+      "dtype": "float32",
+      "sha256": "30e322cb165ed48e97110015063c67cc6785f9bf3c2342be30b937ce5cc59678"
+    },
+    "full_prompt": {
+      "shape": [],
+      "dtype": "<U178",
+      "sha256": "c032fa5b790fb5015d5e26831bd23b452ae0572da689f00cf712a9d1e77685b6"
+    },
+    "tokens": {
+      "shape": [
+        1,
+        200
+      ],
+      "dtype": "int64",
+      "sha256": "33389c43c53fe5e85f935a1115a2a51797d9895d3f289d5bfd0cc151ebb5eb2b"
+    },
+    "token_mask": {
+      "shape": [
+        1,
+        200
+      ],
+      "dtype": "bool",
+      "sha256": "984455143972cff35406ac61c9e1fc182f08a514055b39c25d43cb9b2d9943db"
+    },
+    "noise": {
+      "shape": [
+        1,
+        50,
+        32
+      ],
+      "dtype": "float32",
+      "sha256": "ab8e2236e8d9761f6f2314a61944dfd5b1bfa7064cc9bbd414f36b8fa2276227"
+    }
+  },
+  "camera_valid_count": 3,
+  "token_valid_count": 138,
+  "task": "move_the_red_block to the blue area",
+  "full_prompt": "Task: move the red block to the blue area, State: 64 68 72 76 80 84 88 92 97 101 105 109 113 117 121 125 130 134 138 142 146 150 154 158 163 167 171 175 179 183 187 192;\nAction: ",
+  "state_prompt_processor": "Pi05PrepareStateTokenizerProcessorStep",
+  "normalization_statistics": {
+    "kind": "synthetic_quantiles",
+    "values": {
+      "observation.state": {
+        "q01": [
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0,
+          -2.0
+        ],
+        "q99": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0
+        ]
+      },
+      "action": {
+        "q01": [
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          -0.5
+        ],
+        "q99": [
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5
+        ]
+      }
+    }
+  },
+  "outputs": {
+    "mlx_actions": {
+      "shape": [
+        1,
+        50,
+        32
+      ],
+      "dtype": "float32",
+      "sha256": "2296d50ec0cf437b57b4ecb756099560537ac7979cfaa951b79fcea807aa22fd"
+    },
+    "torch_actions": {
+      "shape": [
+        1,
+        50,
+        32
+      ],
+      "dtype": "float32",
+      "sha256": "151c5f2891facf4a46662c0c933592214196c729b59b10340bf41a82e8e1add5"
+    },
+    "postprocessed_mlx_actions": {
+      "shape": [
+        1,
+        50,
+        32
+      ],
+      "dtype": "float32",
+      "sha256": "f40e1cca4c0e135e9717974478fa6b6057211b6774a2d23e8aa9c5ca0113fd0d"
+    },
+    "postprocessed_torch_actions": {
+      "shape": [
+        1,
+        50,
+        32
+      ],
+      "dtype": "float32",
+      "sha256": "a0c6240e921804e5a0ed6d55508acefa45eaca43be7c2fd039e6af6dfb011cfc"
+    }
+  },
+  "artifacts": {
+    "inputs.npz": {
+      "bytes": 2779755,
+      "sha256": "2e47597b40c1f1dfe6808927a1baa557b8da77d1ac5c822f90259c5e71fea73d"
+    },
+    "actions.npz": {
+      "bytes": 24145,
+      "sha256": "fe54b3f8437a9c5c3eaf068163ef859d9570151c6a308c519af5aeb433480a0b"
+    }
+  },
+  "output_shape": [
+    1,
+    50,
+    32
+  ],
+  "all_actions_finite": true,
+  "parity_passed": true,
+  "parity_atol": 5e-05,
+  "parity_rtol": 5e-05,
+  "sample_max_absolute_error": 6.109476089477539e-07,
+  "sample_mean_absolute_error": 1.301313687918082e-07,
+  "postprocessed_max_absolute_error": 2.980232238769531e-07,
+  "pretrained_full_model_run": true,
+  "full_inference_pipeline_run": true,
+  "synthetic_inputs": true,
+  "input_boundary": "raw synthetic cameras, robot state and task text",
+  "preprocessing_tested": true,
+  "tokenizer_tested": true,
+  "sentencepiece_token_parity": true,
+  "synthetic_normalization_tested": true,
+  "postprocessing_tested": true,
+  "dataset_normalization_tested": false,
+  "robot_policy_evaluation": false,
+  "performance_benchmark": false,
+  "cpu_model_inference": false,
+  "provenance": {
+    "repository": "lerobot/pi05_base",
+    "revision": "22c30e5b34f9e7ab738b1b34fc2fc5ecfe2d28f0",
+    "checkpoint_sha256_matches_official_lfs": true,
+    "tokenizer_source": "https://storage.googleapis.com/big_vision/paligemma_tokenizer.model",
+    "tokenizer_source_reference": "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/src/openpi/models/tokenizer.py",
+    "runner_sha256": "4d1ce3ef5f91f5fba9a22cfc17e2585d8c43bf35949228039248fd009c081802",
+    "recorded_at": "2026-10-28T17:41:15.634638+00:00"
+  },
+  "hardware": {
+    "device_name": "Apple M5 Pro",
+    "memory_bytes": 51539607552
+  },
+  "recorded_command": "MLX_ENABLE_TF32=0 PYTORCH_ENABLE_MPS_FALLBACK=0 HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 integrations/mlx_pi/.venv/bin/python -m integrations.mlx_pi.infer_synthetic artifacts/pi05-base --output artifacts/pi05-synthetic-metal",
+  "repository_artifacts": {
+    "actions": "docs/evidence/pi05-synthetic-actions.npz",
+    "inputs": "Regenerate with the recorded command; the complete raw/processed input bundle stays in the local output directory."
+  }
+}

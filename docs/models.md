@@ -17,8 +17,8 @@ Cache keys include source content, model hashes, preprocessing, OpenCV version, 
 
 ## PI05 and MLX
 
-The [MLX adapter](mlx.md) trains the π₀.₅ action expert with a frozen official LeRobot encoder. Small-model CPU tests compare loss, gradients, parameter updates and checkpoint resume. The [license notice](../integrations/mlx_pi/NOTICE.md) lists the implementation sources and distinguishes Apache code from the Gemma checkpoint terms.
+The [MLX adapter](mlx.md) trains the π₀.₅ action expert with a frozen official LeRobot encoder. All 14 local model tests use MPS and MLX Metal to compare loss, gradients, parameter updates and checkpoint resume. The [license notice](../integrations/mlx_pi/NOTICE.md) lists the implementation sources and distinguishes Apache code from the Gemma checkpoint terms.
 
-The target machine is the M5 Pro with 48 GB unified memory. The RTX 3060 machine has 12 GB VRAM and 16 GB system RAM, but neither machine was available for measurement. The shipped OpenCV backend uses CPU inference. The MLX runtime has an explicit Metal verification command; it fails when no Apple GPU is available.
+The [full synthetic inference run](evidence/pi05-synthetic-metal.json) passed on the M5 Pro with 48 GB unified memory. The encoder and official reference use MPS, and the MLX action expert uses Metal. CPU model fallback is disabled. The RTX 3060 machine has 12 GB VRAM and 16 GB system RAM and remains untested. The separate OpenCV review backend uses CPU inference.
 
-Full pretrained PI05 preprocessing still needs an authorized local PaliGemma tokenizer. Official tokenizer requests returned HTTP 401, and the full checkpoint was not downloaded. Memory fit, sustained training speed and policy quality therefore remain unverified on both target machines.
+The full PI05 check uses the public tokenizer asset downloaded anonymously by official OpenPI and the complete pinned pretrained checkpoint. Generated images, state, task text and synthetic quantile statistics exercise the full input/output flow. Peak memory use, sustained training speed and policy quality remain unmeasured.

@@ -15,6 +15,7 @@ The tests cover source import, review, approval, training-format conversion and 
 | Controlled corruptions | Two seeds each classified 16 cases correctly: four complete repairs, three data-review cases, seven rejections and two clean controls; [benchmark](messy-droid.md) |
 | MLX PI05 | 14 small-model tests passed on CPU. Loss error was `2.38e-7`, maximum gradient error `2.55e-7`, and resumed parameters matched exactly; [recorded run](evidence/mlx-pi05.json) |
 | MLX PI05 on Apple GPU | 14 tests passed with the official encoder and reference on MPS and the MLX action expert on Metal. CPU fallback and TF32 were disabled. Loss error was zero and checkpoint resume was exact; [Mac run](evidence/mlx-pi05-metal.json) |
+| Full pretrained PI05 inference | Generated raw cameras, state and task text passed official preprocessing, full MPS encoder, ten MLX Metal sampling steps and official postprocessing. Finite `[1, 50, 32]` actions matched the full MPS reference within `6.11e-7`; [report](evidence/pi05-synthetic-metal.json) and [action arrays](evidence/pi05-synthetic-actions.npz) |
 | Code and browser checks | Ruff, formatting and JavaScript syntax passed; seven browser tests cover desktop/mobile review and response diagnostics across navigation |
 
 The [real DROID screenshot](evidence/droid-batch-review.png) shows a missing-sample variant in native review, with an automated-test label and source attribution. The [synthetic walkthrough](evidence/labelstudio-walkthrough.webm) records a temporal correction. Older custom-editor images document the earlier prototype.
@@ -25,7 +26,7 @@ The [demo guide](demo.md) reproduces acquisition, native correction and export, 
 
 The corruption benchmark uses seeded perturbations of one organized episode. Its clean reference and answer key stay outside the recovery process. Zero silent corruption in this suite does not establish recovery quality on arbitrary recordings. Incomplete and rejected cases remain visible in the report and are not counted as repaired.
 
-The MLX result uses random small-model weights and the official encoder implementation. Full pretrained training has not run. Official tokenizer requests returned HTTP 401, so pretrained preprocessing needs authorized local assets. The Mac numerical checks now run on MPS and MLX Metal. Sustained accelerator performance, memory use and RTX 3060 behavior remain unmeasured.
+The 14 numerical tests use random small-model weights. The separate full inference run loads the pinned pretrained checkpoint and uses the public tokenizer asset from official OpenPI. Its camera images, state, task and normalization statistics are synthetic. Both runs use MPS and MLX Metal without CPU model fallback. Full pretrained training, sustained accelerator performance, peak memory use and RTX 3060 behavior remain unmeasured.
 
 Human annotation time, agreement, semantic-label accuracy and policy quality remain unmeasured. Native `lead_time` is retained as raw metadata, while active human time is null. The pipeline does not turn automated test durations into efficiency estimates.
 
