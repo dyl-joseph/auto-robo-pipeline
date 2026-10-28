@@ -121,6 +121,7 @@ def verify_batch(sdk, store, directory, cookies, real_source=None):
                 "LS_FIXTURE_COOKIES": json.dumps(cookies),
                 "LS_FIXTURE_PROJECT": str(project_id),
                 "LS_FIXTURE_TASK": str(ordered[0].id),
+                "LS_FIXTURE_TITLE": ordered[0].data["task"],
                 "LS_FIXTURE_VIEW": str(views[0].id),
             },
         )
