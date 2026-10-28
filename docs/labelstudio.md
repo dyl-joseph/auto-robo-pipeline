@@ -45,7 +45,7 @@ Response diagnostics record the API path, method and status synchronously. Chrom
 
 ## Known task-loading defect
 
-Cold navigation to `data?task=ID` can lose predictions in Label Studio 1.23.2. The task-detail response contains predictions, but a later task-list response can replace it with a row that omits them. If this happens before the editor mounts, the editor shows an empty annotation.
+Cold navigation to `data?task=ID` can lose predictions in Label Studio 1.23.2. The task-detail response contains predictions, but a later task-list response replaces the selected task with a row that omits them. If the editor initializes after that replacement, it has no prediction. If it initializes first, it retains the prediction while the task store loses it. Waiting for video readiness does not distinguish these states. The pinned source replaces rows in [`setList`](https://github.com/HumanSignal/label-studio/blob/1.23.2/web/libs/datamanager/src/mixins/DataStore/DataStore.js) and copies task data into the editor in [`LSFWrapper`](https://github.com/HumanSignal/label-studio/blob/1.23.2/web/libs/datamanager/src/sdk/lsf-sdk.js).
 
 Open the Data Manager first and click a task row. This route passes the complete correction, submit, reload and export test, including at 6× browser CPU throttling. Ordinary reload after saving remains covered. The bridge does not patch upstream stores or inject predictions.
 
@@ -54,7 +54,11 @@ LS_CPU_RATE=6 uv run --locked python -m scripts.labelstudio_smoke --browser
 LS_TASK_LOADING_CONTRACT=1 LS_CPU_RATE=6 uv run --locked python -m scripts.labelstudio_smoke --browser
 ```
 
-CI uses the second command. It reorders unmodified server responses to reproduce the defect, then recovers through the project table and requires the full review sequence to pass. Revisit the negative control when upgrading Label Studio. CPU throttling tests loading order; it is not a hardware performance measurement.
+CI uses the second command. Two fresh projects make both orderings reproducible. One holds the pinned editor bootstrap (`/react-app/99.js`, the bundled `production.js`) until the task list has been consumed; the other holds the task list until the editor has its prediction. Neither changes response contents or native application state. Each case checks its exact counts for two seconds after media readiness, then opens the task through the project table and compares the editor's prediction ID, controls, labels and ranges with the server. The zero-prediction assertion remains required in the first case.
+
+The apparent annotation in these cold controls is an unsaved editor draft: the API must report zero saved annotations. Both cases then require recovery through the project table. The main fixture still exercises correction, submit, reload, approval and export, and checks prediction contents again after reload. The original predictions must remain unchanged. See [the regression evidence](evidence/native-task-loading.json).
+
+Revisit the response and bootstrap gates when upgrading Label Studio. They describe the pinned version's behavior; CPU throttling is not a hardware performance measurement.
 
 ## Known collapsed-plot defect
 

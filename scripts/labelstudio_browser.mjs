@@ -9,6 +9,7 @@ let page;
 const mutations = [];
 const responses = [];
 const errors = [];
+const controlErrors = [];
 const realDroid = process.env.LS_FIXTURE_REAL_DROID === "1";
 const evidencePrefix = realDroid ? "droid" : "labelstudio";
 const screenshotPrefix = realDroid
@@ -52,89 +53,188 @@ async function review() {
   }
   observeNativePage(page, { responses, mutations, errors });
   const loadingContract = process.env.LS_TASK_LOADING_CONTRACT === "1";
+  let coldOrder = null;
   let detailsDelivered = 0;
-  let orderedListDelivered = false;
-  let releaseList;
-  const detailsReady = new Promise((resolve) => {
-    releaseList = resolve;
-  });
+  let listDelivered = false;
+  let bootstrapHeld = false;
+  const state = () =>
+    page.evaluate(() => ({
+      task_predictions: window.DM?.taskStore.selected?.predictions.length ?? -1,
+      editor_predictions: window.Htx?.annotationStore.predictions.length ?? -1,
+      human_annotations: window.Htx?.annotationStore.annotations.length ?? -1,
+    }));
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.hostname !== "127.0.0.1") return route.abort();
-    // Reorder real responses only. No response payload or application state is modified.
-    if (loadingContract && !orderedListDelivered) {
-      if (/^\/api\/tasks\/\d+$/.test(url.pathname) && detailsDelivered < 2) {
-        const response = await route.fetch();
-        await route.fulfill({ response });
-        detailsDelivered += 1;
-        if (detailsDelivered === 2) releaseList();
-        return;
-      }
-      if (url.pathname === "/api/tasks" && url.searchParams.has("page")) {
-        const response = await route.fetch();
-        let timer;
-        try {
-          await Promise.race([
-            detailsReady,
-            new Promise((_, reject) => {
-              timer = setTimeout(
-                () => reject(new Error("task detail delivery timeout")),
-                7000,
-              );
-            }),
-          ]);
+    try {
+      // Reorder genuine responses without changing payloads or upstream stores.
+      if (coldOrder && !listDelivered) {
+        if (/^\/api\/tasks\/\d+$/.test(url.pathname) && detailsDelivered < 2) {
+          const response = await route.fetch();
           await route.fulfill({ response });
-          orderedListDelivered = true;
-        } finally {
-          clearTimeout(timer);
+          detailsDelivered += 1;
+          return;
         }
-        return;
+        if (url.pathname === "/api/tasks" && url.searchParams.has("page")) {
+          const response = await route.fetch();
+          await expect.poll(() => detailsDelivered, { timeout: 20000 }).toBe(2);
+          if (coldOrder === "editor_before_list") {
+            await expect
+              .poll(async () => (await state()).editor_predictions, {
+                timeout: 20000,
+              })
+              .toBe(1);
+          }
+          await route.fulfill({ response });
+          listDelivered = true;
+          return;
+        }
       }
+      // This is the pinned 1.23.2 editor environment bootstrap (production.js).
+      // Holding it keeps editor initialization after the list was *consumed*.
+      if (
+        coldOrder === "list_before_editor" &&
+        url.pathname === "/react-app/99.js"
+      ) {
+        bootstrapHeld = true;
+        await expect.poll(() => listDelivered, { timeout: 20000 }).toBe(true);
+        await expect
+          .poll(async () => (await state()).task_predictions, {
+            timeout: 20000,
+          })
+          .toBe(0);
+      }
+      await route.continue();
+    } catch (error) {
+      controlErrors.push(String(error));
+      await route.abort();
     }
-    return route.continue();
   });
   const projectURL = `http://127.0.0.1:8134/projects/${process.env.LS_FIXTURE_PROJECT}/data`;
-  if (loadingContract) {
-    await page.goto(`${projectURL}?task=${process.env.LS_FIXTURE_TASK}`);
-    await waitForVideo();
-    const cold = await page.evaluate(() => ({
-      task_predictions: window.DM.taskStore.selected.predictions.length,
-      editor_predictions: window.Htx.annotationStore.predictions.length,
-      human_annotations: window.Htx.annotationStore.annotations.length,
-    }));
-    expect(cold).toEqual({
-      task_predictions: 0,
-      editor_predictions: 0,
-      human_annotations: 1,
+  async function openTaskRow(taskId) {
+    const row = page.getByTestId("table-row").filter({
+      has: page.getByRole("checkbox", {
+        name: `Select Task ${taskId}`,
+        exact: true,
+      }),
     });
+    await row.waitFor({ state: "visible", timeout: 20000 });
+    await row
+      .getByText(process.env.LS_FIXTURE_TITLE || "Transfer cube", {
+        exact: true,
+      })
+      .click();
+    await waitForVideo();
+  }
+  async function checkPrediction(taskId) {
+    const task = await (
+      await page.request.get(`http://127.0.0.1:8134/api/tasks/${taskId}/`)
+    ).json();
+    const editor = await page.evaluate(() =>
+      window.Htx.annotationStore.predictions.map((prediction) => ({
+        id: Number(prediction.pk),
+        result: prediction.serializeAnnotation(),
+      })),
+    );
+    expect(task.predictions).toHaveLength(1);
+    const results = (items) =>
+      items.map(({ id, result }) => ({
+        id,
+        result: result.map(({ id, from_name, to_name, type, value }) => ({
+          id,
+          from_name,
+          to_name,
+          type,
+          value,
+        })),
+      }));
+    expect(results(editor)).toEqual(results(task.predictions));
+    return {
+      task_id: taskId,
+      prediction_ids: editor.map(({ id }) => id),
+      contents_match: true,
+    };
+  }
+  if (loadingContract) {
+    const cases = [];
+    const fixtures = JSON.parse(process.env.LS_LOADING_CASES);
+    expect(fixtures).toHaveLength(2);
+    for (const [index, order] of [
+      "list_before_editor",
+      "editor_before_list",
+    ].entries()) {
+      const fixture = fixtures[index];
+      coldOrder = order;
+      detailsDelivered = 0;
+      listDelivered = false;
+      bootstrapHeld = false;
+      await page.goto(
+        `http://127.0.0.1:8134/projects/${fixture.project_id}/data?task=${fixture.task_id}`,
+      );
+      await waitForVideo();
+      await expect.poll(() => listDelivered, { timeout: 20000 }).toBe(true);
+      await expect
+        .poll(async () => (await state()).task_predictions, { timeout: 20000 })
+        .toBe(0);
+      const cold = await state();
+      const expected = {
+        task_predictions: 0,
+        editor_predictions: order === "list_before_editor" ? 0 : 1,
+        human_annotations: 1,
+      };
+      expect(cold).toEqual(expected);
+      expect(bootstrapHeld).toBe(order === "list_before_editor");
+      const samples = [cold];
+      // Observe persistence after both responses and media loading have finished.
+      for (let i = 0; i < 5; i += 1) {
+        await page.waitForTimeout(400);
+        const sample = await state();
+        expect(sample).toEqual(expected);
+        samples.push(sample);
+      }
+      expect(controlErrors).toEqual([]);
+      const server = await (
+        await page.request.get(
+          `http://127.0.0.1:8134/api/tasks/${fixture.task_id}/`,
+        )
+      ).json();
+      expect(server.predictions).toHaveLength(1);
+      expect(server.annotations).toHaveLength(0);
+      coldOrder = null;
+      await page
+        .getByRole("link", { name: "Robot episode review", exact: true })
+        .click();
+      await openTaskRow(fixture.task_id);
+      expect(await state()).toEqual({
+        task_predictions: 1,
+        editor_predictions: 1,
+        human_annotations: 1,
+      });
+      const recovered = await checkPrediction(fixture.task_id);
+      cases.push({
+        order,
+        cold,
+        persistence_ms: 2000,
+        samples,
+        server_annotations: 0,
+        recovered,
+      });
+      console.log(
+        "Reproduced upstream cold-task loading race",
+        JSON.stringify(cases.at(-1)),
+      );
+    }
     await writeFile(
       "artifacts/labelstudio-task-loading.json",
       JSON.stringify({
         upstream_version: "1.23.2",
         response_order: "two_task_details_then_list",
-        cold,
+        cases,
       }),
     );
-    console.log(
-      "Reproduced upstream cold-task loading race",
-      JSON.stringify(cold),
-    );
-    await page
-      .getByRole("link", { name: "Robot episode review", exact: true })
-      .click();
-  } else {
-    await page.goto(projectURL);
   }
-  const taskRow = page.getByTestId("table-row").filter({
-    has: page.getByRole("checkbox", {
-      name: `Select Task ${process.env.LS_FIXTURE_TASK}`,
-      exact: true,
-    }),
-  });
-  await taskRow.waitFor({ state: "visible", timeout: 20000 });
-  await taskRow
-    .getByText(process.env.LS_FIXTURE_TITLE || "Transfer cube", { exact: true })
-    .click();
+  await page.goto(projectURL);
+  await openTaskRow(Number(process.env.LS_FIXTURE_TASK));
   const video = await waitForVideo();
   const initialTask = await (
     await page.request.get(
@@ -184,6 +284,7 @@ async function review() {
     ),
   );
   expect(initialTask.predictions).toHaveLength(1);
+  await checkPrediction(Number(process.env.LS_FIXTURE_TASK));
   await page
     .locator(".lsf-annotation-button")
     .filter({ has: page.locator(".lsf-annotation-button__userpic_prediction") })
@@ -304,6 +405,9 @@ async function review() {
   await savedTab.waitFor({ state: "visible", timeout: 30000 });
   await savedTab.click();
   await expect(savedTab).toHaveClass(/lsf-annotation-button_selected/);
+  const predictionAfterReload = await checkPrediction(
+    Number(process.env.LS_FIXTURE_TASK),
+  );
   await waitForVideo();
   await expect(
     page.getByPlaceholder("Evidence, corrections, and uncertainty"),
@@ -338,6 +442,7 @@ async function review() {
     path: `${screenshotPrefix}-native.png`,
     fullPage: true,
   });
+  expect(controlErrors).toEqual([]);
   expect(errors).toEqual([]);
   await context.close();
   await copyFile(
@@ -356,12 +461,14 @@ async function review() {
       native_video_playback: true,
       sensor_seek_sync: true,
       native_annotation_update: true,
+      prediction_after_reload: predictionAfterReload,
       native_temporal_edit: { start: 1, end: 6 },
       native_outcome: realDroid ? "unknown" : "failure",
       native_quality: realDroid ? ["incomplete"] : ["recovery"],
       mutation_trace: mutations,
       response_trace: responses,
       script_errors: errors,
+      loading_control_errors: controlErrors,
     }),
   );
   console.log(
@@ -387,6 +494,7 @@ try {
       mutation_trace: mutations,
       response_trace: responses,
       script_errors: errors,
+      loading_control_errors: controlErrors,
     }),
   );
   await writeFile(
@@ -396,6 +504,7 @@ try {
       mutation_trace: mutations,
       response_trace: responses,
       script_errors: errors,
+      loading_control_errors: controlErrors,
     }),
   );
   if (page) {
