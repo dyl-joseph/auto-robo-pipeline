@@ -63,6 +63,16 @@ The comparison must score predictions before a person corrects them. Use indepen
 
 Report per-class precision, recall and temporal segment F1, boundary error, missed labels and the amount of human review requested. Show corrected results separately so they do not inflate autonomous accuracy. The existing [evaluator](docs/results.md#evaluate-supplied-review-artifacts) has fixture tests for matching and metrics, but no held-out semantic-labeling result has been measured. DROID's language instructions and the automated review fixtures are not ground-truth temporal annotations.
 
+## Future work: a small semantic-labeling prototype
+
+PI's [π₀.₅ research](https://www.pi.website/blog/pi05) uses semantic subtask instructions and high-level subtask prediction alongside multimodal co-training. [π₀.₇ §V-A](https://www.pi.website/download/pi07.pdf#page=4) also annotates temporal segments with detailed subtask text. That motivates making **text-labeled temporal segments** the core output of our planned prototype.
+
+Keep the scope small: **DROID → automatic text-labeled segments → independent ground-truth comparison → review/export**. Start with a small video-language model that proposes subtask text and start/end boundaries, and compare it with a robot-state baseline on the same held-out episodes. Score uncorrected predictions against independent reference annotations before sending uncertain cases to review. Use the existing approval and export workflow.
+
+Object tracking would be added only if it measurably improves annotation quality or reduces review workload. World models, memory-heavy controllers and a full π₀.₇ reproduction are outside this prototype. These are proposed experiments; implementation still requires plan approval and suitable model/data access.
+
+The direct annotation benchmark remains primary. An original-versus-enriched policy ablation would be a separate later experiment, with matched data splits, training recipe and compute budget. It would test whether better annotations improve held-out robot-task performance; the annotation benchmark alone cannot establish that.
+
 ## Next phase: broader messy-data recovery
 
 The existing [controlled benchmark](docs/messy-droid.md) is a limited starting point: 16 variants of one real episode, with four repaired, three flagged for data review, seven rejected and two clean controls. It found no silent corruption in those cases. Those results test structural recovery, not semantic-label accuracy. Broader recovery from naturally messy recordings is the next phase after the autonomous-labeling evaluation. Human time savings and performance on arbitrary messy recordings remain unmeasured.
