@@ -109,6 +109,12 @@ def test_trusted_binding_rejects_changed_task_and_never_auto_approves(episode):
     snapshot = annotation_snapshot(store, binding, task, bundle["proxy"])
     assert snapshot["annotations"][0]["eligibility"].startswith("draft")
     assert store.latest(e["id"])["revision"] == 0
+    sensors = store.root / "review_proxy" / bundle["proxy"]["id"] / "sensors.csv"
+    original = sensors.read_bytes()
+    sensors.write_text("changed")
+    with pytest.raises(ValueError, match="artifact hash"):
+        annotation_snapshot(store, binding, task, bundle["proxy"])
+    sensors.write_bytes(original)
     task["data"]["episode_id"] = "different"
     with pytest.raises(ValueError, match="trusted"):
         annotation_snapshot(store, binding, task, bundle["proxy"])

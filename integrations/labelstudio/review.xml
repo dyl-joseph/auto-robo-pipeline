@@ -5,7 +5,7 @@
       font-family: Arial, sans-serif;
     }
     .episode-title, .episode-title * {
-      font-family: Georgia, serif; font-size: 30px;
+      font-family: Georgia, serif !important; font-size: 30px;
       font-weight: normal; margin-bottom: 24px;
     }
     .episode-note { color: #73736f; font-size: 12px; margin: 14px 0; }

@@ -145,7 +145,7 @@ def prepare_proxy(store: Store, episode_id: str, fps: int = 12) -> dict:
 def label_config(columns: list[str], fps: int) -> str:
     import html
 
-    labels = "".join(f'<Label value="{label}" background="#dce5e7"/>' for label in LABELS)
+    labels = "".join(f'<Label value="{label}" background="#4d6870"/>' for label in LABELS)
     channels = "".join(
         f'<Channel column="{html.escape(column, quote=True)}" strokeColor="#5f777e" height="70"/>'
         for column in columns
@@ -283,6 +283,9 @@ def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) ->
         or file_hash(store.root / episode["media"]) != episode["video_sha256"]
     ):
         raise ValueError("Label Studio export does not match trusted source/task/proxy binding")
+    directory = store.root / "review_proxy" / proxy["id"]
+    if any(file_hash(directory / name) != value for name, value in proxy["files"].items()):
+        raise ValueError("review proxy artifact hash mismatch")
     annotations = []
     for annotation in task.get("annotations", []):
         if annotation.get("was_cancelled"):
