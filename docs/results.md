@@ -14,7 +14,7 @@ The tests cover source import, review, approval, training-format conversion and 
 | Real DROID export | All 119 loaded state/action vectors matched decoded RLDS values; every selected-camera image checked; zero omitted or repeated source frames; [recorded run](evidence/droid-roundtrip.json) |
 | Controlled corruptions | Two seeds each classified 16 cases correctly: four complete repairs, three data-review cases, seven rejections and two clean controls; [benchmark](messy-droid.md) |
 | MLX PI05 | 14 small-model tests passed on CPU. Loss error was `2.38e-7`, maximum gradient error `2.55e-7`, and resumed parameters matched exactly; [recorded run](evidence/mlx-pi05.json) |
-| Code and browser checks | Ruff, formatting, JavaScript syntax and legacy desktop/mobile regression tests passed |
+| Code and browser checks | Ruff, formatting and JavaScript syntax passed; seven browser tests cover desktop/mobile review and response diagnostics across navigation |
 
 The [real DROID screenshot](evidence/droid-batch-review.png) shows a missing-sample variant in native review, with an automated-test label and source attribution. The [synthetic walkthrough](evidence/labelstudio-walkthrough.webm) records a temporal correction. Older custom-editor images document the earlier prototype.
 

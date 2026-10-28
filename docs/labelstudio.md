@@ -41,6 +41,8 @@ The test clicks a task, copies its prediction through **Create an annotation**, 
 
 After a reload, the test selects the saved annotation rather than relying on the default tab. It waits for the video to attach before polling media readiness. Submitted TextArea notes appear as saved results, while the input becomes blank. Failure evidence includes a screenshot, accessible UI snapshot and request statuses without session credentials.
 
+Response diagnostics record the API path, method and status synchronously. Chromium can discard a response body during navigation, so reading JSON inside an async response listener can reject after a successful save. The checks for predictions and saved corrections use awaited API requests. `npm run test:e2e -- tests/browser/native-trace.spec.js` reproduces the discarded-body error after navigation, checks that diagnostics survive it, and verifies that application errors and malformed JSON remain visible to assertions.
+
 ## Known task-loading defect
 
 Cold navigation to `data?task=ID` can lose predictions in Label Studio 1.23.2. The task-detail response contains predictions, but a later task-list response can replace it with a row that omits them. If this happens before the editor mounts, the editor shows an empty annotation.

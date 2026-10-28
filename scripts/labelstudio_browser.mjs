@@ -1,11 +1,13 @@
 import { chromium, expect } from "@playwright/test";
 import { copyFile, writeFile } from "node:fs/promises";
+import { observeNativePage } from "./labelstudio_trace.mjs";
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
   args: ["--no-sandbox"],
 });
 let page;
 const mutations = [];
+const responses = [];
 const errors = [];
 const realDroid = process.env.LS_FIXTURE_REAL_DROID === "1";
 const evidencePrefix = realDroid ? "droid" : "labelstudio";
@@ -48,49 +50,7 @@ async function review() {
       rate: Number(process.env.LS_CPU_RATE),
     });
   }
-  page.on("response", async (response) => {
-    const request = response.request();
-    const url = new URL(request.url());
-    if (
-      /^\/api\/tasks\/\d+\/?$/.test(url.pathname) &&
-      request.method() === "GET"
-    ) {
-      const task = await response.json();
-      console.log(
-        "Native task response",
-        JSON.stringify({
-          path: url.pathname + url.search,
-          id: task.id,
-          predictions: (task.predictions || []).map((p) => ({
-            id: p.id,
-            model_version: p.model_version,
-            result_count: p.result?.length,
-          })),
-        }),
-      );
-    }
-    if (url.pathname === `/api/projects/${process.env.LS_FIXTURE_PROJECT}`) {
-      const project = await response.json();
-      console.log(
-        "Native project configuration",
-        JSON.stringify({
-          id: project.id,
-          model_version: project.model_version,
-          show_collab_predictions: project.show_collab_predictions,
-        }),
-      );
-    }
-    if (
-      request.url().includes("/api/") &&
-      !["GET", "HEAD"].includes(request.method())
-    )
-      mutations.push({
-        path: new URL(request.url()).pathname,
-        method: request.method(),
-        status: response.status(),
-      });
-  });
-  page.on("pageerror", (error) => errors.push(error.message));
+  observeNativePage(page, { responses, mutations, errors });
   const loadingContract = process.env.LS_TASK_LOADING_CONTRACT === "1";
   let detailsDelivered = 0;
   let orderedListDelivered = false;
@@ -400,6 +360,7 @@ async function review() {
       native_outcome: realDroid ? "unknown" : "failure",
       native_quality: realDroid ? ["incomplete"] : ["recovery"],
       mutation_trace: mutations,
+      response_trace: responses,
       script_errors: errors,
     }),
   );
@@ -424,6 +385,7 @@ try {
     JSON.stringify({
       error: String(error),
       mutation_trace: mutations,
+      response_trace: responses,
       script_errors: errors,
     }),
   );
@@ -432,6 +394,7 @@ try {
     JSON.stringify({
       error: String(error),
       mutation_trace: mutations,
+      response_trace: responses,
       script_errors: errors,
     }),
   );
