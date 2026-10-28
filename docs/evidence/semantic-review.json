@@ -1,0 +1,62 @@
+{
+  "evidence_kind": "real_droid_automated_semantic_review_integration",
+  "native": {
+    "approval_actor": "automated-test-approver",
+    "approved_json_export_verified": true,
+    "automatic_approvals_in_product": 0,
+    "boundary_edit_preserves_coverage": true,
+    "candidate_segments": 9,
+    "corrected_segments": 9,
+    "episodes": 1,
+    "evidence_kind": "real_droid_automated_semantic_integration",
+    "human_review_measured": false,
+    "native_text_and_object_edit_verified": true,
+    "prediction_sha256_after": "1ce6e047534691fb4d810f6e2b7917ff336cddc2f4965cf4582a5f53131db3bf",
+    "prediction_sha256_before": "1ce6e047534691fb4d810f6e2b7917ff336cddc2f4965cf4582a5f53131db3bf",
+    "saved_reload_verified": true,
+    "semantic_accuracy_measured": false,
+    "source_attribution": "DROID, Khazatsky et al. (2024)",
+    "source_frames": 119,
+    "source_license": "CC-BY-4.0",
+    "source_timing": "inferred_nominal_fps",
+    "text_only_edit_invalidates_approval": true
+  },
+  "lerobot": {
+    "accepted_version": "a067e1520f5866e30f89540d",
+    "adapter_version": 2,
+    "dataloader_strings_verified": true,
+    "episode_task_unchanged": true,
+    "episodes": 1,
+    "evidence_kind": "real_droid_automated_semantic_review_to_official_lerobot",
+    "frames_loaded_and_checked": 119,
+    "human_review_measured": false,
+    "idempotence_verified": true,
+    "image_batch_shape": [
+      8,
+      3,
+      180,
+      320
+    ],
+    "numeric_values_match_rlds_float32": true,
+    "policy_training_run": false,
+    "prediction_sha256_after": "1ce6e047534691fb4d810f6e2b7917ff336cddc2f4965cf4582a5f53131db3bf",
+    "prediction_sha256_before": "1ce6e047534691fb4d810f6e2b7917ff336cddc2f4965cf4582a5f53131db3bf",
+    "pretrained_qwen_run": false,
+    "segments": 9,
+    "semantic_accuracy_measured": false,
+    "source_attribution": "DROID, Khazatsky et al. (2024)",
+    "source_license": "CC-BY-4.0",
+    "source_timing": "inferred_nominal_15_hz_no_capture_timestamps",
+    "split": "test",
+    "text_and_object_match_corrected_source_frames": true,
+    "training_version": "05ccd318d963931b4a2de2a0"
+  },
+  "local_checks": {
+    "core_python_passed": 196,
+    "lerobot_roundtrip_passed": 5,
+    "playwright_passed": 7
+  },
+  "source_url": "https://droid-dataset.github.io/droid/the-droid-dataset.html",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "screenshot": "semantic-droid-native.png"
+}

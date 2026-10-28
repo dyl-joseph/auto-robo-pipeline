@@ -25,7 +25,7 @@ An optional `--config config.json` can change the stream names, thresholds and u
 
 The output contains `predictions.json`, per-episode state evidence and `run.json` with file hashes, configuration and failure counts. The prediction process has no reference-file argument and does not read stored review revisions. Its output can be scored with the [semantic evaluator](semantic-evaluation.md#run-the-comparison) once independent references exist. Failed episodes stay in the prediction population and count as misses.
 
-This command creates prediction artifacts. It does not write native annotations or accept them into an export. The semantic review integration is a separate step; the existing native approval workflow remains unchanged.
+This command creates prediction artifacts. It does not write native annotations or accept them into an export. Use the [semantic review step](semantic-review.md) to prepare native text and timeline corrections, then explicitly approve the saved revision.
 
 ## Checks
 

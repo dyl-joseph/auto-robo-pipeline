@@ -103,3 +103,7 @@ The [real DROID pilot](droid.md) passed native correction, approval, export and 
 Dataset conversion does not establish policy quality. See the [MLX guide](mlx.md) for the tested action-expert training path and its remaining pretrained and hardware requirements.
 
 Sources: [official LeRobot v3 format](https://huggingface.co/docs/lerobot/lerobot-dataset-v3), [pinned PyPI release](https://pypi.org/project/lerobot/0.6.1/), [official TorchCodec compatibility](https://github.com/meta-pytorch/torchcodec#compatibility-with-torch-versions). The installed 0.6.1 API is exercised directly.
+
+## Semantic text
+
+[Accepted semantic reviews](semantic-review.md#export-frame-aligned-text) also export per-frame subtask and optional object text. The official loader and DataLoader preserve these strings. Text follows the source frame chosen by the causal video map, while the episode instruction and robot state/action schema keep their existing meanings. Semantic and legacy reviews are converted separately.
