@@ -5,6 +5,7 @@ import json
 from importlib.metadata import version
 from pathlib import Path
 
+import av
 import numpy as np
 import pyarrow.parquet as pq
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -69,6 +70,9 @@ def main():
         assert str(table.schema.field("source.timestamp").type) == "double"
         stored_times.extend(table.column("source.timestamp").to_pylist())
     np.testing.assert_array_equal(stored_times, np.arange(119, dtype=np.float64) / FPS)
+    source_video = av.open(str(args.converted / "video.mp4"))
+    source_frames = source_video.decode(video=0)
+    image_errors = []
     for index, step in enumerate(raw["steps"]):
         row = reader[index]
         expected_state = np.asarray(
@@ -89,7 +93,13 @@ def main():
         image = row["observation.images.source"]
         assert image.shape == (3, 180, 320) and image.isfinite().all()
         assert 0 <= image.min().item() <= image.max().item() <= 1
+        source_rgb = next(source_frames).to_ndarray(format="rgb24").astype(np.float32) / 255
+        image_error = float(np.mean(np.abs(image.permute(1, 2, 0).numpy() - source_rgb)))
+        assert image_error < 0.02, f"frame {index}: lossy image MAE {image_error} exceeds 0.02"
+        image_errors.append(image_error)
         assert row["annotation.subtask"].item() == plan["labels"][index]
+    assert next(source_frames, None) is None
+    source_video.close()
     assert reader[5]["annotation.subtask"].item() == LABELS.index("hold")
     assert reader[6]["annotation.subtask"].item() == LABELS.index("unknown")
     assert reader[len(reader) - 1]["action_is_pad"].tolist() == [False, True]
@@ -114,6 +124,8 @@ def main():
             "state_batch_shape": list(batch["observation.state"].shape),
             "action_batch_shape": list(batch["action"].shape),
             "numeric_values_match_rlds_float32": True,
+            "max_image_mae_vs_source_video": max(image_errors),
+            "image_mae_limit": 0.02,
             "native_outcome": annotation["outcome"],
             "native_quality_flags": annotation["quality_flags"],
             "native_corrected_boundary_s": 6 / FPS,
