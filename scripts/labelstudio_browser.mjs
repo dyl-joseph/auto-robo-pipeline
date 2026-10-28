@@ -24,6 +24,36 @@ async function review() {
   page.setDefaultTimeout(7000);
   page.on("response", async (response) => {
     const request = response.request();
+    const url = new URL(request.url());
+    if (
+      /^\/api\/tasks\/\d+\/?$/.test(url.pathname) &&
+      request.method() === "GET"
+    ) {
+      const task = await response.json();
+      console.log(
+        "Native task response",
+        JSON.stringify({
+          path: url.pathname + url.search,
+          id: task.id,
+          predictions: (task.predictions || []).map((p) => ({
+            id: p.id,
+            model_version: p.model_version,
+            result_count: p.result?.length,
+          })),
+        }),
+      );
+    }
+    if (url.pathname === `/api/projects/${process.env.LS_FIXTURE_PROJECT}`) {
+      const project = await response.json();
+      console.log(
+        "Native project configuration",
+        JSON.stringify({
+          id: project.id,
+          model_version: project.model_version,
+          show_collab_predictions: project.show_collab_predictions,
+        }),
+      );
+    }
     if (
       request.url().includes("/api/") &&
       !["GET", "HEAD"].includes(request.method())
@@ -35,11 +65,11 @@ async function review() {
       });
   });
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.route("**/*", (route) =>
-    new URL(route.request().url()).hostname === "127.0.0.1"
-      ? route.continue()
-      : route.abort(),
-  );
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.hostname !== "127.0.0.1") return route.abort();
+    return route.continue();
+  });
   await page.goto(
     `http://127.0.0.1:8134/projects/${process.env.LS_FIXTURE_PROJECT}/data?task=${process.env.LS_FIXTURE_TASK}`,
   );
