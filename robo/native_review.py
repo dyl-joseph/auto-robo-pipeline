@@ -76,14 +76,11 @@ class NativeReviewBridge:
             raise ValueError("native labeling configuration differs from the prepared review clock")
         annotation_snapshot(self.store, binding, {**task, "annotations": []}, bundle["proxy"])
         if binding.get("semantic_prediction"):
-            from robo.semantic_review import bound_prediction, prediction_results
+            from robo.semantic_review import bound_prediction, native_predictions
 
             _, row, _ = bound_prediction(self.store, binding)
-            expected_results = prediction_results(row)
-            expected_predictions = bundle["task"]["predictions"]
-            if len(expected_predictions) != bool(expected_results) or (
-                expected_results and expected_predictions[0]["result"] != expected_results
-            ):
+            expected = native_predictions(row, binding["semantic_prediction"]["snapshot_id"])
+            if bundle["task"]["predictions"] != expected:
                 raise ValueError("semantic task differs from its uncorrected prediction snapshot")
         actual = [prediction_payload(p) for p in task["predictions"]]
         expected = [prediction_payload(p) for p in bundle["task"]["predictions"]]
@@ -258,6 +255,7 @@ class NativeReviewBridge:
 
     def export(self, selection: list[dict], output: Path) -> dict:
         receipts = []
+        selected_splits = {s["episode_id"]: s["split"] for s in selection}
 
         def validate(revision):
             current = self.observe(revision["episode_id"], revision["native"]["annotation_id"])
@@ -265,6 +263,9 @@ class NativeReviewBridge:
                 raise Conflict(
                     "native annotation changed; refresh and explicitly approve a new draft"
                 )
+            semantic = current["native"].get("semantic_review")
+            if semantic and semantic["split"] != selected_splits[revision["episode_id"]]:
+                raise ValueError("semantic export must preserve the frozen evaluation split")
             receipts.append(
                 {
                     "episode_id": revision["episode_id"],

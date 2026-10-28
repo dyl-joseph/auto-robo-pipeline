@@ -141,7 +141,19 @@ def accept(s, revision=1):
 
 
 def selection(s, revision=2):
-    return [{"episode_id": s.episode["id"], "revision": revision, "split": "train"}]
+    return [{"episode_id": s.episode["id"], "revision": revision, "split": "test"}]
+
+
+def test_held_out_review_cannot_be_exported_as_training(semantic, tmp_path):
+    s = semantic
+    register(s)
+    refresh(s)
+    accept(s)
+    changed = selection(s)
+    changed[0]["split"] = "train"
+    with pytest.raises(ValueError, match="frozen evaluation split"):
+        s.bridge.export(changed, tmp_path / "leaked")
+    assert not (tmp_path / "leaked").exists()
 
 
 def test_snapshot_and_repeat_preparation_keep_uncorrected_bytes(semantic):
@@ -292,3 +304,12 @@ def test_coarse_frame_proxy_is_rejected(semantic):
     proxy["frames"].pop()
     with pytest.raises(ValueError, match="one-to-one"):
         decoded_review(s.annotation["result"], s.spec, proxy)
+
+
+@pytest.mark.parametrize("field,value", [("score", 0.99), ("model_version", "unbound-model")])
+def test_changed_prediction_identity_cannot_be_registered(semantic, field, value):
+    s = semantic
+    s.bundle["task"]["predictions"][0][field] = value
+    s.task["predictions"][0][field] = value
+    with pytest.raises(ValueError, match="uncorrected prediction snapshot"):
+        register(s)

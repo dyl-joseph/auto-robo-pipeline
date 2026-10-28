@@ -163,3 +163,108 @@ def test_invalid_training_schema(training_case, change):
     _, schema = training_case
     with pytest.raises(ValueError):
         TrainingSchema.model_validate({**schema.model_dump(), **change})
+
+
+@pytest.fixture
+def semantic_case(training_case):
+    record, schema = training_case
+    record["split"] = "test"
+    reviewed = []
+    for start, end, action, text, obj in [
+        (0, 2, "reach", "Reach toward cup", "cup"),
+        (2, 4, "hold", "Hold position; contact unknown", None),
+    ]:
+        reviewed.append(
+            dict(
+                region_id=f"segment-{start}",
+                source_start=start,
+                source_end_exclusive=end,
+                start_s=start / 10,
+                end_s=end / 10,
+                normalized_action=action,
+                subtask_text=text,
+                object_text=obj,
+            )
+        )
+    record["annotation"]["segments"] = [
+        dict(start_s=s["start_s"], end_s=s["end_s"], label=s["normalized_action"]) for s in reviewed
+    ]
+    record["annotation"]["native"] = {
+        "semantic_review": dict(
+            schema_version=1,
+            kind="model_assisted_review",
+            prediction_exposure=True,
+            complete=True,
+            split="test",
+            segments=reviewed,
+        )
+    }
+    return record, schema
+
+
+def test_semantic_text_follows_source_frames_and_object_absence(semantic_case):
+    record, schema = semantic_case
+    plan = plan_episode(record, schema)
+    assert plan["semantic"]["annotation.subtask_text"] == [
+        "Reach toward cup",
+        "Reach toward cup",
+        "Hold position; contact unknown",
+        "Hold position; contact unknown",
+    ]
+    assert plan["semantic"]["annotation.object_text"] == ["cup", "cup", "", ""]
+    assert plan["semantic"]["annotation.object_present"].tolist() == [
+        [True],
+        [True],
+        [False],
+        [False],
+    ]
+    assert plan["labels"].tolist() == [LABELS.index(x) for x in ["reach", "reach", "hold", "hold"]]
+
+
+def test_repeated_video_frame_keeps_its_semantic_text(semantic_case):
+    record, schema = semantic_case
+    record["episode"].update(
+        time_base="1/20",
+        original_pts=[200, 201, 202, 206],
+        original_pts_s=[10, 10.05, 10.1, 10.3],
+        timestamps_s=[0, 0.05, 0.1, 0.3],
+    )
+    segments = record["annotation"]["native"]["semantic_review"]["segments"]
+    segments[0]["end_s"] = segments[1]["start_s"] = 0.1
+    record["annotation"]["segments"][0]["end_s"] = record["annotation"]["segments"][1][
+        "start_s"
+    ] = 0.1
+    plan = plan_episode(record, schema)
+    assert plan["video_indices"].tolist() == [0, 2, 2, 3]
+    assert plan["semantic"]["annotation.subtask_text"] == [
+        "Reach toward cup",
+        *["Hold position; contact unknown"] * 3,
+    ]
+    assert plan["labels"].tolist() == [LABELS.index("reach"), *[LABELS.index("hold")] * 3]
+
+
+@pytest.mark.parametrize(
+    "problem", ["gap", "overlap", "tail", "time", "action", "blank", "incomplete", "split"]
+)
+def test_inconsistent_semantic_training_labels_fail(semantic_case, problem):
+    record, schema = semantic_case
+    review = record["annotation"]["native"]["semantic_review"]
+    segment = review["segments"][1]
+    if problem == "gap":
+        segment["source_start"] = 3
+    elif problem == "overlap":
+        segment["source_start"] = 1
+    elif problem == "tail":
+        segment["source_end_exclusive"] = 3
+    elif problem == "time":
+        segment["start_s"] = 0.21
+    elif problem == "action":
+        segment["normalized_action"] = "reach"
+    elif problem == "blank":
+        segment["subtask_text"] = " "
+    elif problem == "incomplete":
+        review["complete"] = False
+    else:
+        record["split"] = "train"
+    with pytest.raises(ValueError, match="semantic"):
+        plan_episode(record, schema)

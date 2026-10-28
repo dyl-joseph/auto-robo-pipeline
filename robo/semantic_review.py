@@ -149,6 +149,23 @@ def prediction_results(row):
     return results
 
 
+def native_predictions(row, identity):
+    results = prediction_results(row)
+    return (
+        [
+            {
+                "model_version": f"semantic-{identity}",
+                "result": results,
+                "score": min(
+                    1 - (s.uncertainty if s.uncertainty is not None else 1) for s in row.segments
+                ),
+            }
+        ]
+        if results
+        else []
+    )
+
+
 def prepare(store, plan_path, prediction_path, episode_id, output):
     from robo.labelstudio import label_config, task_bundle
 
@@ -166,20 +183,7 @@ def prepare(store, plan_path, prediction_path, episode_id, output):
     bundle = task_bundle(store, episode_id)
     proxy = bundle["proxy"]
     exact_grid(spec, proxy)
-    results = prediction_results(row)
-    bundle["task"]["predictions"] = (
-        [
-            {
-                "model_version": f"semantic-{identity}",
-                "result": results,
-                "score": min(
-                    1 - (s.uncertainty if s.uncertainty is not None else 1) for s in row.segments
-                ),
-            }
-        ]
-        if results
-        else []
-    )
+    bundle["task"]["predictions"] = native_predictions(row, identity)
     bundle["task"]["data"]["provenance"] += (
         f" · {predictions.producer} · uncorrected semantic suggestions; review required"
         + (f" · prediction failed: {row.error}" if row.error else "")
@@ -295,6 +299,7 @@ def decoded_review(results, spec, proxy):
         "schema_version": 1,
         "kind": "model_assisted_review",
         "prediction_exposure": True,
+        "split": spec.split,
         "segments": segments,
         "complete": complete and end == len(spec.frame_boundaries_s) - 1,
     }
