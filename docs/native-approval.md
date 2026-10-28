@@ -17,27 +17,29 @@ stateDiagram-v2
 
 ## Operator workflow
 
-Prepare/import the task as described in the [native GUI guide](labelstudio.md). Preparation writes `bundle.json` alongside the import JSON, XML and mapping. Keep that original bundle: it binds the source, task data, review clock and immutable machine suggestions.
+Prepare and import the task as described in the [native GUI guide](labelstudio.md). Preparation writes `bundle.json` alongside the import JSON, XML and mapping. Keep that original bundle: it binds the source, task data, review clock and immutable machine suggestions.
+
+The examples use `data/local/work`, matching the batch guide. Use your actual store path throughout. If `batch sync` already published the task, its binding exists; skip `bind` and start with `refresh`.
 
 The CLI requires an existing authorized credential in `LABEL_STUDIO_API_KEY` and defaults to `http://127.0.0.1:8000`. It neither creates nor stores a credential. Python callers can instead supply an already authenticated official SDK client/session to `NativeReviewBridge`, as the integration test does. Live bridge requests are restricted to loopback origins. Offline inspection requires no credential.
 
 ```bash
 # After manual project/task import, register their actual native IDs once:
-uv run --locked python -m robo native-review bind \
+uv run --locked python -m robo --store data/local/work native-review bind \
   artifacts/labelstudio-bundle/bundle.json --project PROJECT_ID --task TASK_ID
 
 # Submit the correction in Label Studio, then choose its annotation ID explicitly:
-uv run --locked python -m robo native-review refresh EPISODE_ID \
+uv run --locked python -m robo --store data/local/work native-review refresh EPISODE_ID \
   --annotation ANNOTATION_ID --expected-revision 0 \
   --actor reviewer --reason 'Imported saved correction for approval'
 
-uv run --locked python -m robo native-review inspect EPISODE_ID
-uv run --locked python -m robo native-review accept EPISODE_ID \
+uv run --locked python -m robo --store data/local/work native-review inspect EPISODE_ID
+uv run --locked python -m robo --store data/local/work native-review accept EPISODE_ID \
   --expected-revision 1 --actor approver --reason 'Checked video, boundaries and quality flags'
 # Use `reject` instead of `accept` to exclude this exact draft.
 
 # selection.json: [{"episode_id":"ACTUAL_EPISODE_ID","revision":2,"split":"train"}]
-uv run --locked python -m robo native-review export selection.json artifacts/accepted-v1 \
+uv run --locked python -m robo --store data/local/work native-review export selection.json artifacts/accepted-v1 \
   > artifacts/accepted-v1-receipt.json
 uv run --locked python -m robo validate-export artifacts/accepted-v1
 ```

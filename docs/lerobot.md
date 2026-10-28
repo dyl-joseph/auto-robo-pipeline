@@ -29,13 +29,15 @@ export HF_HUB_DISABLE_TELEMETRY=1
 
 uv run --locked --project integrations/lerobot python -m robo.lerobot_export \
   --accepted artifacts/accepted-v1 \
-  --source-root data/local \
+  --source-root data/local/demo \
   --schema integrations/lerobot/synthetic-schema.json \
   --split train \
   --output artifacts/lerobot-v1-train
 ```
 
-Use the example schema only with the generated illustration. For real data, supply the declared robot type, target FPS/image dimensions, maximum permitted video age, and ordered state/action components. Each component names a source stream, column index, name, units and meaning. Source modality and units must match exactly. Missing streams, missing initial samples, gaps beyond tolerance, invalid dimensions and float32 overflow fail conversion. No zero filling, fabricated values, automatic normalization or inferred control representation is performed.
+The example uses the generated illustration in the default `data/local/demo` store. Use its schema only with that illustration. For a batch export, set `--source-root` to the batch store; the [batch guide](batch-workflow.md) gives the DROID command.
+
+For real data, supply the declared robot type, target FPS/image dimensions, maximum permitted video age, and ordered state/action components. Each component names a source stream, column index, name, units and meaning. Source modality and units must match exactly. Missing streams, missing initial samples, gaps beyond tolerance, invalid dimensions and float32 overflow fail conversion. No zero filling, fabricated values, automatic normalization or inferred control representation is performed.
 
 ## Timestamp and split contract
 

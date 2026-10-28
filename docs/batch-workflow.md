@@ -35,7 +35,7 @@ Use your existing local login and authorized API key. The workflow creates no ac
 uv run --locked python -m robo --store data/local/work batch sync
 ```
 
-`sync` publishes tasks, configures local proxy storage and creates a **Review priority** tab. The table shows task, priority and reasons such as missing samples or weak motion evidence. Numeric sorting puts higher priorities first. Open a row to review video, sensors and proposed regions in the existing editor. Projects are grouped by labeling configuration, so different channel layouts or review frame rates do not share an incompatible editor.
+`sync` publishes tasks, configures local proxy storage and creates a **Review priority** tab. The table shows task, priority and reasons such as missing samples or weak motion evidence. Numeric sorting puts higher priorities first. Report links open this queue, and `summary.txt` gives the native task ID to select. Click that row to review video, sensors and proposed regions in the existing editor. Projects are grouped by labeling configuration, so different channel layouts or review frame rates do not share an incompatible editor.
 
 If a request is interrupted after Label Studio creates a task, rerun `sync`. It finds and validates that task before binding it locally. Conflicting matches stop synchronization with an error. Repeated syncs reuse projects, storage connections, views and tasks. Queue priority and reason can change as reviews develop; source data, predictions and annotations retain their provenance checks.
 
@@ -51,6 +51,20 @@ uv run --locked python -m robo --store data/local/work batch export artifacts/ac
 ```
 
 Export rechecks the native annotation before writing. Unreviewed, rejected or changed annotations cannot enter a new accepted export. The result feeds the existing [LeRobot conversion](lerobot.md). These commands use the latest batch by default. Select an older batch with a report path on `status`/`sync`, or `--report PATH` on `export`.
+
+For a DROID batch in `data/local/work`, convert the approved export with its generated schema:
+
+```bash
+uv sync --locked --project integrations/lerobot
+export HF_HOME="$PWD/.cache/huggingface"
+export HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_OFFLINE=1
+uv run --locked --project integrations/lerobot python -m robo.lerobot_export \
+  --accepted artifacts/accepted --source-root data/local/work \
+  --schema data/local/droid-converted/training-schema.json \
+  --split train --output artifacts/lerobot-train
+```
+
+Use your own explicit schema for other recordings. Approval does not override the converter's checks for missing state/actions or unresolved clocks.
 
 ## What the counts mean
 

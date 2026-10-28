@@ -225,7 +225,7 @@ def persist_report(report):
         lines.append(f"- {row['id']}: {row['task']} — " + "; ".join(row["reasons"]))
         native = report.get("native_tasks", {}).get(row["id"])
         if native:
-            lines.append("  " + native["url"])
+            lines.append(f"  Native task {native['task_id']}: {native['url']}")
     lines.extend(
         ["", "Approvals require an explicit decision. Human review time has not been measured."]
     )
