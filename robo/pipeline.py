@@ -10,9 +10,10 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from robo.analysis import queue, suggest
-from robo.core import Source, atomic_json, digest, file_hash
+from robo.core import atomic_json, digest, file_hash
 from robo.ingest import import_episode
 from robo.labelstudio import task_bundle
+from robo.recovery import data_findings, normalize_source
 from robo.store import Store
 
 
@@ -54,7 +55,16 @@ def summarize(store, report):
         row = by_episode[episode_id]
         if row["status"] in {"accepted", "excluded"}:
             continue
-        selected.append({**row, "bundle": item["bundle"], "stage_file": item["stage_file"]})
+        extra_reasons = sorted({finding["code"] for finding in item.get("data_findings", [])})
+        selected.append(
+            {
+                **row,
+                "priority": row["priority"] + 2 * len(extra_reasons),
+                "reasons": list(dict.fromkeys([*row["reasons"], *extra_reasons])),
+                "bundle": item["bundle"],
+                "stage_file": item["stage_file"],
+            }
+        )
     selected.sort(key=lambda row: (-row["priority"], row["id"]))
     report["review_queue"] = selected
     completed = [item["episode_id"] for item in report["items"] if item["status"] == "prepared"]
@@ -74,6 +84,14 @@ def summarize(store, report):
         ),
         "automatic_approvals": 0,
         "human_active_seconds": None,
+        "data_review_requests": len(
+            {
+                item["episode_id"]
+                for item in report["items"]
+                if item["status"] == "prepared" and item.get("data_findings")
+            }
+        )
+        + sum(item["status"] == "failed" for item in report["items"]),
     }
     report["status"] = (
         "needs_input"
@@ -115,13 +133,16 @@ def run_batch(inbox, store: Store):
             previous = json.loads(stage_file.read_text()) if stage_file.exists() else {}
             item["completed_stages"] = previous.get("completed_stages", [])
             try:
-                Source.model_validate_json(path.read_text())
+                normalized = directory / "normalized" / item_id / "source.json"
+                item["recovery"] = normalize_source(path, normalized)
+                _complete(stage_file, item, "normalize")
                 item["stage"] = "import"
-                episode = import_episode(path, store)
+                episode = import_episode(normalized, store)
                 if file_hash(path) != entry["manifest_sha256"]:
                     raise ValueError("Source manifest changed during import; rerun the inbox")
                 item["episode_id"] = episode["id"]
                 item["source_hash"] = episode["content_hash"]
+                item["data_findings"] = data_findings(episode)
                 _complete(stage_file, item, "import")
                 item["stage"] = "suggest"
                 run = suggest(store, episode["id"])
