@@ -30,8 +30,10 @@ jobs:
       - run: uv run --locked ruff check . && uv run --locked ruff format --check .
       - run: npm ci --cache .cache/npm
       - run: npm run check:web && npm run format:check
-      - run: npx playwright install --with-deps chromium ffmpeg
+      - run: npx playwright install --with-deps chrome ffmpeg
       - run: npm run test:e2e
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
       - uses: actions/upload-artifact@v4
         if: always()
         with:

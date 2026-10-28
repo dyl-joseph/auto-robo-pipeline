@@ -125,12 +125,12 @@ def perceive(store: Store, episode_id: str, model_dir: Path, sample_every_s=0.5,
     return run
 
 
-def active_perception(store: Store, episode_id: str):
+def active_perception(store: Store, episode_id: str, run_id: str | None = None):
     directory = store.root / "perception" / episode_id
     pointer = directory / "active.json"
-    if not pointer.exists():
+    if run_id is None and not pointer.exists():
         return None
-    identity = json.loads(pointer.read_text())["id"]
+    identity = run_id or json.loads(pointer.read_text())["id"]
     if len(identity) != 24 or any(c not in "0123456789abcdef" for c in identity):
         raise ValueError("invalid perception identity")
     run = json.loads((directory / f"{identity}.json").read_text())

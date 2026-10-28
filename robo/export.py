@@ -72,7 +72,11 @@ def _export_dataset(store: Store, selection: list[dict], output: Path) -> dict:
                 "audit_trail": store.history(episode["id"]),
                 "suggestion_artifact_hash": run["artifact_hash"] if run else None,
                 "suggestion_config": run["config"] if run else None,
-                "perception": active_perception(store, episode["id"]),
+                "perception": (
+                    active_perception(store, episode["id"], revision["perception_run"])
+                    if revision.get("perception_run")
+                    else None
+                ),
             }
         )
     records.sort(key=lambda r: r["episode_id"])

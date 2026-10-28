@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from robo.analysis import latest_run, queue
-from robo.core import Edit, digest
+from robo.core import Edit, ExportRequest, digest
 from robo.export import export_dataset
 from robo.perception import active_perception
 from robo.store import Conflict, Store
@@ -71,12 +71,23 @@ def create_app(root: Path) -> FastAPI:
 
     @app.get("/api/episodes/{episode_id}")
     async def episode(episode_id: str):
+        revision = store.latest(episode_id)
+        current_perception = active_perception(store, episode_id)
+        pinned = revision.get("perception_run")
+        perception = (
+            active_perception(store, episode_id, pinned)
+            if pinned
+            else current_perception
+            if revision["revision"] == 0
+            else None
+        )
         return {
             "episode": store.episode(episode_id),
-            "review": store.latest(episode_id),
+            "review": revision,
             "history": store.history(episode_id),
             "analysis": latest_run(store, episode_id),
-            "perception": active_perception(store, episode_id),
+            "perception": perception,
+            "active_perception": current_perception,
         }
 
     @app.get("/api/media/{episode_id}")
@@ -92,15 +103,14 @@ def create_app(root: Path) -> FastAPI:
             return JSONResponse({"detail": str(exc)}, status_code=422)
         return store.commit(episode_id, edit, action)
 
+    @app.get("/api/perception/{episode_id}/{run_id}")
+    async def perception_run(episode_id: str, run_id: str):
+        store.episode(episode_id)
+        return active_perception(store, episode_id, run_id)
+
     @app.post("/api/export")
-    async def export(request: Request):
-        body = await request.json()
-        selection = body.get("selection")
-        if not isinstance(selection, list) or any(
-            not isinstance(i, dict) or set(i) != {"episode_id", "revision", "split"}
-            for i in selection
-        ):
-            raise ValueError("selection requires episode_id, revision and split")
+    async def export(body: ExportRequest):
+        selection = [item.model_dump() for item in body.selection]
         output = store.root / "exports" / digest(selection)[:24]
         manifest = export_dataset(store, selection, output)
         return {"manifest": manifest, "download": f"/api/exports/{output.name}/manifest.json"}

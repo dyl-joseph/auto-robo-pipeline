@@ -448,3 +448,72 @@ def test_reject_browser_incompatible_codec(fixture):
     atomic_json(manifest, body)
     with pytest.raises(ValueError, match="H.264 in MP4"):
         import_episode(manifest, store)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        None,
+        [],
+        "bad",
+        42,
+        {"selection": None},
+        {"selection": [None]},
+        {"selection": [{"episode_id": [], "revision": 2, "split": "train"}]},
+        {"selection": [{"episode_id": "a" * 24, "revision": "2", "split": "train"}]},
+        {"selection": [{"episode_id": "a" * 24, "revision": True, "split": "train"}]},
+    ],
+)
+def test_export_api_rejects_malformed_bodies(episode, body):
+    store, _ = episode
+
+    async def scenario():
+        async with AsyncClient(
+            transport=ASGITransport(app=create_app(store.root)), base_url="http://testserver"
+        ) as client:
+            response = await client.post(
+                "/api/export",
+                content=json.dumps(body),
+                headers={"content-type": "application/json"},
+            )
+            assert response.status_code == 422, response.text
+
+    asyncio.run(scenario())
+
+
+def test_review_pins_evidence_and_reexport_ignores_active_changes(episode, tmp_path):
+    from pathlib import Path
+
+    from robo.core import digest
+    from robo.perception import perceive
+
+    model = Path("models/local/mobilenet-ssd")
+    if not (model / "mobilenet_iter_73000.caffemodel").exists():
+        pytest.skip("optional pretrained model weights required")
+    store, e = episode
+    original = suggest(store, e["id"])
+    perception = perceive(store, e["id"], model, max_frames=1)
+    origins = {
+        "suggestion_run": original["id"],
+        "perception_run": perception["id"],
+        "condition": "assisted",
+    }
+    store.commit(e["id"], edit(**origins))
+    store.commit(e["id"], edit(1, **origins), "accept")
+    selection = [{"episode_id": e["id"], "revision": 2, "split": "train"}]
+    before = export_dataset(store, selection, tmp_path / "before")
+    newer = json.loads(json.dumps(original))
+    newer["id"] = "f" * 24
+    newer["config"]["fixture_version"] = 2
+    newer["artifact_hash"] = digest({k: v for k, v in newer.items() if k != "artifact_hash"})
+    atomic_json(store.root / "runs" / e["id"] / f"{newer['id']}.json", newer)
+    atomic_json(store.root / "runs" / e["id"] / "active.json", {"id": newer["id"]})
+    perceive(store, e["id"], model, max_frames=2)
+    after = export_dataset(store, selection, tmp_path / "after")
+    assert before == after
+    record = validate_export(tmp_path / "after")[0]
+    assert record["annotation"]["suggestion_run"] == original["id"]
+    assert record["perception"]["id"] == perception["id"]
+    assert record["suggestion_artifact_hash"] == original["artifact_hash"]
+    restored = store.commit(e["id"], edit(2, **origins), "restore")
+    assert restored["status"] == "draft" and restored["perception_run"] == perception["id"]

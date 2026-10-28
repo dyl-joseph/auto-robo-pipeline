@@ -14,6 +14,11 @@ const state = {
   input: performance.now(),
   paused: false,
   run: null,
+  loadToken: 0,
+  editVersion: 0,
+  saving: false,
+  suggestionOrigin: null,
+  perceptionOrigin: null,
 };
 const colors = ["#759850", "#74929a", "#b59d61", "#a78999", "#c78c62"];
 const text = (tag, value, cls) => {
@@ -42,6 +47,7 @@ function message(value, error = false) {
   $("message").classList.toggle("error", error);
 }
 function dirty() {
+  state.editVersion++;
   state.dirty = true;
   $("save-state").textContent = "Unsaved changes";
 }
@@ -74,6 +80,7 @@ function drawQueue() {
       "",
       `queue-card ${state.current?.episode.id === item.id ? "selected" : ""}`,
     );
+    button.disabled = state.saving;
     const title = text("div", "", "queue-title");
     title.append(
       text("span", `${String(index + 1).padStart(2, "0")}  ${item.task}`),
@@ -113,14 +120,36 @@ function drawCoverage() {
   }
 }
 async function openEpisode(id, force = false) {
+  if (state.saving && !force) return;
+  const token = ++state.loadToken;
+  const editVersion = state.editVersion;
   if (
     state.dirty &&
     !force &&
     !confirm("Leave this episode and discard unsaved edits?")
   )
     return;
-  const data = await api(`/api/episodes/${id}`);
+  let data;
+  try {
+    data = await api(`/api/episodes/${id}`);
+  } catch (error) {
+    if (token === state.loadToken) throw error;
+    else return;
+  }
+  if (token !== state.loadToken) return;
+  if (state.editVersion !== editVersion) {
+    message(
+      "New edits preserved. Save or discard them before switching episodes.",
+    );
+    return;
+  }
+  history.replaceState(null, "", `#${id}`);
   state.current = data;
+  state.suggestionOrigin = data.review.suggestion_run || null;
+  state.perceptionOrigin =
+    data.review.revision > 0
+      ? data.review.perception_run || null
+      : data.perception?.id || null;
   state.run = data.analysis;
   state.segments = structuredClone(data.review.segments);
   state.selected = -1;
@@ -144,7 +173,10 @@ async function openEpisode(id, force = false) {
   $("status").textContent = data.review.status.replaceAll("_", " ");
   $("save-state").textContent = `Saved revision ${data.review.revision}`;
   $("revision-label").textContent = `r${data.review.revision}`;
-  $("video").src = `/api/media/${id}`;
+  if ($("video").dataset.episodeId !== id) {
+    $("video").src = `/api/media/${id}`;
+    $("video").dataset.episodeId = id;
+  }
   $("seek").max = data.episode.duration_s;
   $("axis-mid").textContent = `${(data.episode.duration_s / 2).toFixed(1)}s`;
   $("axis-end").textContent = `${data.episode.duration_s.toFixed(1)}s`;
@@ -355,14 +387,38 @@ function drawHistory() {
       ),
     );
     const restore = text("button", "Restore as draft", "text-button");
-    restore.onclick = () => {
-      state.segments = structuredClone(revision.segments);
-      $("outcome").value = revision.outcome;
-      for (const input of $("flags").querySelectorAll("input"))
-        input.checked = revision.quality_flags.includes(input.value);
-      $("rationale").value = `Restore revision ${revision.revision}`;
-      dirty();
-      drawSegments();
+    restore.onclick = async () => {
+      if (state.saving) return;
+      const id = state.current.episode.id,
+        token = state.loadToken,
+        version = state.editVersion;
+      try {
+        const perception = revision.perception_run
+          ? await api(`/api/perception/${id}/${revision.perception_run}`)
+          : null;
+        if (
+          token !== state.loadToken ||
+          version !== state.editVersion ||
+          state.saving
+        )
+          return;
+        state.segments = structuredClone(revision.segments);
+        state.suggestionOrigin = revision.suggestion_run || null;
+        state.perceptionOrigin = revision.perception_run || null;
+        state.condition = revision.condition;
+        state.current.perception = perception;
+        $("manual-mode").checked = state.condition === "manual";
+        $("outcome").value = revision.outcome;
+        for (const input of $("flags").querySelectorAll("input"))
+          input.checked = revision.quality_flags.includes(input.value);
+        $("rationale").value = `Restore revision ${revision.revision}`;
+        dirty();
+        drawSegments();
+        drawSignals();
+        updateClock();
+      } catch (error) {
+        message(error.message, true);
+      }
     };
     entry.append(restore);
     $("history").append(entry);
@@ -481,13 +537,21 @@ function payload() {
     wall_s: state.wall,
     condition: state.condition,
     suggestion_run:
-      state.condition === "assisted" ? state.run?.id || null : null,
+      state.condition === "assisted" ? state.suggestionOrigin : null,
+    perception_run:
+      state.condition === "assisted" ? state.perceptionOrigin : null,
   };
 }
 async function commit(action) {
-  if (!state.current) return;
+  if (!state.current || state.saving) return;
+  state.saving = true;
+  state.loadToken++;
+  const controls = [
+    ...document.querySelectorAll("button,input,select,textarea"),
+  ].map((node) => [node, node.disabled]);
+  for (const [node] of controls) node.disabled = true;
+  const id = state.current.episode.id;
   try {
-    const id = state.current.episode.id;
     const revision = await api(`/api/reviews/${id}/${action}`, payload());
     state.dirty = false;
     await refreshQueue();
@@ -497,6 +561,11 @@ async function commit(action) {
     );
   } catch (error) {
     message(error.message, true);
+  } finally {
+    state.saving = false;
+    for (const [node, disabled] of controls) node.disabled = disabled;
+    drawQueue();
+    drawTracks();
   }
 }
 $("play").onclick = () => {
@@ -524,6 +593,7 @@ $("load-suggestions").onclick = () => {
     !confirm("Replace unsaved segments with machine candidates?")
   )
     return;
+  state.suggestionOrigin = state.run.id;
   state.segments = state.run.segments.map(({ start_s, end_s, label }) => ({
     start_s,
     end_s,
@@ -549,6 +619,13 @@ $("manual-mode").onchange = () => {
     return;
   }
   state.condition = $("manual-mode").checked ? "manual" : "assisted";
+  state.suggestionOrigin = null;
+  state.perceptionOrigin =
+    state.condition === "assisted"
+      ? state.current.active_perception?.id || null
+      : null;
+  state.current.perception =
+    state.condition === "assisted" ? state.current.active_perception : null;
   state.segments = [];
   dirty();
   drawSegments();
@@ -558,6 +635,8 @@ $("manual-mode").onchange = () => {
 for (const action of ["save", "accept", "uncertain", "exclude"])
   $(action).onclick = () => commit(action);
 $("outcome").onchange = dirty;
+$("rationale").oninput = dirty;
+$("actor").oninput = dirty;
 $("search").oninput = drawQueue;
 for (const button of document.querySelectorAll("[data-filter]"))
   button.onclick = () => {
@@ -576,7 +655,11 @@ setInterval(() => {
   state.last = now;
   if (state.current) {
     state.wall += delta;
-    if (!state.paused && !document.hidden && now - state.input < 30000)
+    if (
+      !state.paused &&
+      !document.hidden &&
+      (now - state.input < 30000 || (!$("video").paused && !$("video").ended))
+    )
       state.active += delta;
     $("active-time").textContent = `${state.active.toFixed(0)}s`;
     $("wall-time").textContent = `${state.wall.toFixed(0)}s`;
@@ -589,6 +672,7 @@ for (const event of ["pointerdown", "pointermove", "keydown"])
 document.addEventListener("keydown", (event) => {
   if (
     !state.current ||
+    state.saving ||
     ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(event.target.tagName)
   )
     return;
@@ -689,7 +773,10 @@ $("export-confirm").onclick = async () => {
 refreshQueue()
   .then(() =>
     state.items.length
-      ? openEpisode(state.items[0].id)
+      ? openEpisode(
+          state.items.find((item) => item.id === location.hash.slice(1))?.id ||
+            state.items[0].id,
+        )
       : ($("empty").hidden = false),
   )
   .catch((error) => {

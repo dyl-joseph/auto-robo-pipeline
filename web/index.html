@@ -20,8 +20,8 @@
     <div class="app">
       <aside class="sidebar">
         <div class="eyebrow">REVIEW QUEUE <span id="queue-count"></span></div>
-        <h1>Find the signal.</h1>
-        <p class="subtle">Inspect evidence. Keep the useful detail.</p>
+        <h1>Episodes</h1>
+        <p class="subtle">Review the evidence. Preserve the detail.</p>
         <label class="search"
           >⌕
           <input
@@ -83,7 +83,7 @@
                 <div class="video-stage">
                   <video
                     id="video"
-                    preload="metadata"
+                    preload="auto"
                     aria-label="Episode video"
                   ></video
                   ><canvas id="overlay"></canvas>
@@ -162,7 +162,10 @@
                   <h3>Review decision</h3>
                   <span class="step">01 / INSPECT</span>
                 </div>
-                <div id="signals"></div>
+                <details class="evidence-notes">
+                  <summary>Data &amp; machine evidence</summary>
+                  <div id="signals"></div>
+                </details>
                 <div class="divider"></div>
                 <div class="panel-heading">
                   <h3>Segment editor</h3>

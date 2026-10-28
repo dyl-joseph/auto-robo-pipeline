@@ -38,6 +38,8 @@ stateDiagram-v2
     excluded --> draft: restore
 ```
 
-Every action creates an immutable revision with actor, note, previous revision, source suggestion origin, condition, active/wall seconds and UTC time. A restore is a new draft. Export pins the latest accepted revision, complete audit trail, source hashes, license, model/config provenance and split membership. It stores nested records as JSON in Parquet to preserve optional heterogeneous stream dimensions; the typed top-level columns are episode ID and split. This is a project schema, not an asserted RLDS/LeRobot adapter.
+Every action creates an immutable revision with actor, note, previous revision, pinned suggestion and perception origins, condition, active/wall seconds and UTC time. A restore is a new draft. Export pins the latest accepted revision, complete audit trail, source hashes, license, model/config provenance and split membership. It stores nested records as JSON in Parquet to preserve optional heterogeneous stream dimensions; the typed top-level columns are episode ID and split. This is a project schema, not an asserted RLDS/LeRobot adapter.
 
 All media stays in the chosen local store. There is no automatic upload or arbitrary remote URL fetch. Serving is bound to loopback with host/origin checks and byte-range support. This is a trusted local application, without user authentication. Do not expose it as a shared public service.
+
+Review provenance follows the labels actually loaded or restored. A manual revision has no machine origins. An assisted revision keeps its original run IDs until the reviewer explicitly loads different evidence; changing an active offline run does not alter a prior accepted decision or its export.

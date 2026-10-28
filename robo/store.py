@@ -74,9 +74,13 @@ class Store:
         body = edit.model_dump()
         validate_segments(body["segments"], episode["duration_s"])
         if body["suggestion_run"]:
-            run = self.root / "runs" / episode_id / f"{body['suggestion_run']}.json"
-            if not run.is_file() or run.parent != (self.root / "runs" / episode_id):
-                raise ValueError("unknown suggestion origin")
+            from robo.analysis import latest_run
+
+            latest_run(self, episode_id, body["suggestion_run"])
+        if body["perception_run"]:
+            from robo.perception import active_perception
+
+            active_perception(self, episode_id, body["perception_run"])
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -100,8 +104,9 @@ class Store:
                     "quality_flags",
                     "condition",
                     "suggestion_run",
+                    "perception_run",
                 ):
-                    if body[field] != previous[field]:
+                    if body[field] != previous.get(field):
                         raise ValueError("save changed labels as a draft before accepting")
                 if "uncertain" in edit.quality_flags:
                     raise ValueError("resolve uncertainty before accepting")

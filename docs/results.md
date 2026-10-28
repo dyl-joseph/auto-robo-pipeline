@@ -4,8 +4,9 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 
 | Evidence | Observed outcome |
 | --- | --- |
-| Python behavior tests | 25 passed, including optional pretrained model smoke test with downloaded pinned weights |
+| Python behavior tests | 35 passed, including optional pretrained model smoke test with downloaded pinned weights |
 | Desktop Chromium | Import fixture → playback/seek → candidates → correction → save → stale-tab conflict → accept → download export → edit/reopen passed |
+| Browser race/provenance/timing regressions | Delayed out-of-order loads, edits during load, repeated saves, navigation during save, restored origins and >30s playback timing passed |
 | Mobile Chromium, 390×844 | Manual condition, segment creation, responsive layout and no horizontal overflow passed |
 | Dependency readiness | 12 H.264 frames decoded, Parquet round-trip, FastAPI request passed |
 | Code checks | Ruff lint/format, browser JavaScript syntax, Prettier check |
@@ -15,7 +16,7 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 | Human time savings, agreement and error recall | Unmeasured; automation timings and fixture metrics do not establish these |
 | RTX 3060 / M5 Pro performance | Unmeasured; neither machine accessed |
 
-The browser evidence was recorded with automated actions and synthetic media. The notes in the audit panel explicitly identify automation. Playback and seek use actual H.264 video; a byte-range API test checks seek support. [Workspace screenshot](evidence/review-workspace.png), [export screenshot](evidence/dataset-export.png), [mobile screenshot](evidence/mobile-review.png), [walkthrough recording](evidence/review-walkthrough.webm).
+The browser evidence was recorded with automated actions and synthetic media. The notes in the audit panel explicitly identify automation. Playback and seek use actual H.264 video; a byte-range API test checks seek support. [Synchronized workspace](evidence/synchronized-review.png), [optional object evidence](evidence/review-workspace.png), [export screenshot](evidence/dataset-export.png), [mobile screenshot](evidence/mobile-review.png), [walkthrough recording](evidence/review-walkthrough.webm).
 
 ## Reproduce the evaluation machinery
 

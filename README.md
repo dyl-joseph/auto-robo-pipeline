@@ -2,13 +2,13 @@
 
 A local workspace for turning robot video and synchronized streams into reviewed, versioned training records. Inspect machine evidence, correct temporal annotations, keep an audit trail, and export only accepted revisions.
 
-![Episode review workspace — synthetic fixture](docs/evidence/review-workspace.png)
+![Episode review workspace — synthetic fixture](docs/evidence/synchronized-review.png)
 
 [Watch the browser walkthrough](docs/evidence/review-walkthrough.webm) · [Export view](docs/evidence/dataset-export.png) · [Evidence and limitations](docs/results.md)
 
 ## Run it
 
-Requires Python 3.12, uv 0.12.23, FFmpeg/FFprobe. No account, GPU or paid service is needed.
+Requires Python 3.12, uv 0.12.23, FFmpeg/FFprobe. No account, GPU or paid service is needed. The editor uses a restrained, light layout with the video and timeline as its main surfaces.
 
 ```bash
 ./scripts/setup.sh
@@ -24,7 +24,7 @@ This creates **six synthetic, eight-second illustrated episodes**, with generate
 3. Save a draft with a reviewer ID and decision note. Accept it in a separate action. Uncertain evidence can go to adjudication; exclusion needs a note.
 4. Export accepted revisions to JSONL and Parquet. Choose splits by session; validation rejects leakage and changed source files.
 
-An edit to an accepted revision creates a new draft. A second browser tab cannot overwrite a newer revision. Restore creates a draft while retaining all prior decisions. Active timing includes playback and correction, pauses after 30 seconds of idle time or when hidden, and is explicitly client reported.
+An edit to an accepted revision creates a new draft. A second browser tab cannot overwrite a newer revision. Restore creates a draft while retaining all prior decisions. Active timing includes playback and correction, counts visible playback throughout, pauses after 30 seconds of editing idle time or when hidden, and is explicitly client reported.
 
 ## What runs today
 

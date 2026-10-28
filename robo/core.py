@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
 LABELS = (
     "reach",
@@ -103,10 +103,13 @@ class Edit(Contract):
     active_s: float = Field(ge=0, le=86400, default=0)
     wall_s: float = Field(ge=0, le=86400, default=0)
     condition: Literal["manual", "assisted"] = "manual"
-    suggestion_run: str | None = None
+    suggestion_run: str | None = Field(default=None, pattern=r"^[a-f0-9]{24}$")
+    perception_run: str | None = Field(default=None, pattern=r"^[a-f0-9]{24}$")
 
     @model_validator(mode="after")
     def timing(self):
+        if self.condition == "manual" and (self.suggestion_run or self.perception_run):
+            raise ValueError("manual reviews cannot claim machine evidence origins")
         if self.active_s > self.wall_s + 0.01:
             raise ValueError("active time cannot exceed wall time")
         if not self.actor.strip() or not self.rationale.strip():
@@ -154,3 +157,19 @@ def validate_segments(segments: list[dict], duration: float) -> None:
         previous = segment.end_s
     if not math.isfinite(duration):
         raise ValueError("invalid duration")
+
+
+class ExportItem(Contract):
+    episode_id: str = Field(pattern=r"^[a-f0-9]{24}$")
+    revision: StrictInt = Field(ge=1)
+    split: Literal["train", "development", "test"]
+
+
+class ExportRequest(Contract):
+    selection: list[ExportItem] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def unique_episodes(self):
+        if len({item.episode_id for item in self.selection}) != len(self.selection):
+            raise ValueError("duplicate selected episode")
+        return self
