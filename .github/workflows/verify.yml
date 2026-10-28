@@ -24,6 +24,9 @@ jobs:
       - run: uv sync --locked --project integrations/mlx_pi
       - run: uv run --locked --project integrations/mlx_pi python -m pytest -q integrations/mlx_pi
       - run: uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.verify --device cpu
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: uv sync --locked --project integrations/semantic
+      - run: uv run --locked --project integrations/semantic python -m pytest -q integrations/semantic/test_qwen.py
       - uses: actions/upload-artifact@v4
         with:
           name: mlx-pi05-evidence

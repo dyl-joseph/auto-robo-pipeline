@@ -67,7 +67,7 @@ Report per-class precision, recall and temporal segment F1, boundary error, miss
 
 The [semantic contract and evaluator](docs/semantic-evaluation.md) accept text-labeled segments with source-frame evidence, a frozen split manifest, and separate prediction/reference files. They score normalized actions and exact object labels, retain failed episodes in the denominator, and check reference and split declarations. Generated tests cover the contract; real semantic accuracy still requires independent annotations and model predictions.
 
-The [robot-state baseline](docs/semantic-state-baseline.md) now produces coarse text-labeled motion and gripper candidates in that format. It has run on the 119-frame DROID pilot, but its object/contact interpretation and accuracy remain unverified. The learned video-language adapter is still pending.
+The [robot-state baseline](docs/semantic-state-baseline.md) produces coarse text-labeled motion and gripper candidates in that format. It has run on the 119-frame DROID pilot, but its object/contact interpretation and accuracy remain unverified. The [local Qwen adapter](docs/qwen-semantic-adapter.md) adds bounded sampled-image inference and strict output validation. Its official tiny-model execution tests pass; full pretrained labeling still needs the pinned local weights and independent references.
 
 ## Future work: a small semantic-labeling prototype
 
