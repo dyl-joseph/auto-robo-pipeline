@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.cache/playwright playwright test",
-    "check:web": "node --check web/app.js && node --check scripts/labelstudio_browser.mjs && node --check scripts/labelstudio_sync.mjs",
+    "check:web": "node --check web/app.js && node --check scripts/labelstudio_browser.mjs && node --check scripts/labelstudio_sync.mjs && node --check scripts/labelstudio_queue.mjs",
     "format:check": "prettier --check web playwright.config.js tests/browser scripts/labelstudio_*.mjs package.json"
   },
   "devDependencies": {
