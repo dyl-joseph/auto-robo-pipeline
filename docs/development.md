@@ -1,5 +1,22 @@
 # Development environment
 
+## Application workflow (current)
+
+Use the README commands for the implemented application. `python -m robo demo` prepares the local synthetic store and `python -m robo serve` binds to 127.0.0.1:8000. No process is started by setup. The material below records the original environment milestone.
+
+The editor is static native JavaScript/CSS, so there is no compiled frontend build. `npm ci`, `npm run check:web` and `npm run format:check` validate its locked tooling and source. `pytest` covers the Python application; Playwright exercises real Chromium. Optional pretrained weights use `python -m scripts.fetch_model` and stay ignored.
+
+In this saved Linux environment, system Chromium and FFmpeg can be reused for browser video without another download:
+
+```bash
+mkdir -p .cache/playwright/ffmpeg-1013
+ln -sf /usr/bin/ffmpeg .cache/playwright/ffmpeg-1013/ffmpeg-linux
+npm run test:e2e
+```
+
+This path is tied to the locked Playwright version. On another system use its documented browser install command in README. `CHROMIUM_PATH` overrides executable discovery. Browser tests create a disposable store, record their actions under `artifacts/browser-tests`, and save synthetic screenshots under `docs/evidence`. No real data or credentials are involved.
+
+
 ## What is prepared
 
 The current milestone is planning and environment preparation. Python 3.12 and uv 0.12.23 manage a locked CPU environment with FastAPI, Uvicorn, Pydantic, NumPy, OpenCV headless, and PyArrow. The development group contains pytest, pytest-cov, HTTPX, and Ruff.

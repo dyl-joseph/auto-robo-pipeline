@@ -1,0 +1,18 @@
+{
+  "evidence_kind":"synthetic_fixture",
+  "seed":7,
+  "episodes":[
+    {"id":"fixture-a","duration_s":3,"group":"fixture-session-a",
+     "predicted":[{"start_s":0.1,"end_s":1,"label":"reach"},{"start_s":1,"end_s":2,"label":"hold"}],
+     "reference":[{"start_s":0,"end_s":1,"label":"reach"},{"start_s":1,"end_s":2,"label":"grasp"}]},
+    {"id":"fixture-b","duration_s":3,"group":"fixture-session-b",
+     "predicted":[{"start_s":0,"end_s":1.2,"label":"reach"}],
+     "reference":[{"start_s":0,"end_s":1,"label":"reach"}]}
+  ],
+  "budget_s":10,
+  "error_pool":[
+    {"id":"fixture-a","priority":4,"review_s":5,"erroneous":true},
+    {"id":"fixture-b","priority":2,"review_s":5,"erroneous":false},
+    {"id":"fixture-c","priority":1,"review_s":5,"erroneous":true}
+  ]
+}

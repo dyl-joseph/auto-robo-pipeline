@@ -1,6 +1,6 @@
 # Proposed architecture
 
-Status: design for M1–M5. None of the interfaces, commands, or application directories below are implemented by the planning commit.
+Status: original design retained below for context. The implementation now lives in `robo/`, `web/` and `tests/`. The shipped CLI uses `python -m robo`; see the README for exact commands. The native JavaScript editor replaces the proposed React client to avoid a second application build for the first single-page workflow. SQLite owns review transactions, immutable local files own source/analysis artifacts, and FastAPI serves loopback media with byte ranges. M5 human research gates remain open; see [results](results.md).
 
 ## Caller experience
 

@@ -1,0 +1,15 @@
+{
+  "name": "episode-curation-verification",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.cache/playwright playwright test",
+    "check:web": "node --check web/app.js",
+    "format:check": "prettier --check web playwright.config.js tests/browser package.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "prettier": "3.6.2"
+  }
+}

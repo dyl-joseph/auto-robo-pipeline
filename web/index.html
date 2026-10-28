@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Episode / Curation workspace</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/"
+        ><span class="mark">e</span> EPISODE <span class="slash">/</span>
+        <span class="muted">Curation workspace</span></a
+      >
+      <div class="top-right">
+        <span class="local-dot"></span> LOCAL WORKSPACE
+        <button id="export-open" class="primary">Export dataset ↗</button>
+      </div>
+    </header>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="eyebrow">REVIEW QUEUE <span id="queue-count"></span></div>
+        <h1>Find the signal.</h1>
+        <p class="subtle">Inspect evidence. Keep the useful detail.</p>
+        <label class="search"
+          >⌕
+          <input
+            id="search"
+            placeholder="Filter by task or episode"
+            aria-label="Filter queue"
+        /></label>
+        <div class="filters">
+          <button class="chip active" data-filter="all">All episodes</button
+          ><button class="chip" data-filter="pending">To review</button
+          ><button class="chip" data-filter="accepted">Accepted</button>
+        </div>
+        <div class="queue-note">
+          ↗ Priority + task coverage
+          <span
+            title="One item per task first, then warning score. Scores are heuristic."
+            >ⓘ</span
+          >
+        </div>
+        <nav id="queue" aria-label="Episode review queue"></nav>
+        <div class="sidebar-bottom">
+          <div class="eyebrow">COLLECTION COVERAGE</div>
+          <div id="coverage"></div>
+          <p class="tiny">Recovery and failure examples stay visible.</p>
+        </div>
+      </aside>
+      <main>
+        <div id="empty" hidden>
+          No episodes yet. Run <code>python -m robo demo</code> to create the
+          local fixture collection.
+        </div>
+        <section id="workspace" hidden>
+          <div class="episode-header">
+            <div>
+              <div class="eyebrow" id="breadcrumb">COLLECTION / EPISODE</div>
+              <h2 id="task"></h2>
+              <div class="episode-meta">
+                <span id="data-kind" class="badge"></span
+                ><span id="episode-id"></span><span id="duration"></span>
+              </div>
+            </div>
+            <div class="save-state">
+              <span id="status" class="badge"></span>
+              <div id="save-state" class="tiny"></div>
+            </div>
+          </div>
+          <div class="work-grid">
+            <div class="evidence-column">
+              <div class="video-shell">
+                <div class="video-top">
+                  <span
+                    ><span class="live-dot"></span> CAMERA 01 · SOURCE
+                    VIDEO</span
+                  ><label
+                    ><input type="checkbox" id="show-tracks" checked /> Motion
+                    evidence</label
+                  >
+                </div>
+                <div class="video-stage">
+                  <video
+                    id="video"
+                    preload="metadata"
+                    aria-label="Episode video"
+                  ></video
+                  ><canvas id="overlay"></canvas>
+                  <div class="video-bottom">
+                    <span id="timecode">00:00.00</span
+                    ><span id="frame-label">PTS clock</span>
+                  </div>
+                </div>
+                <div class="playback">
+                  <button id="play" aria-label="Play or pause">▶</button
+                  ><input
+                    type="range"
+                    id="seek"
+                    min="0"
+                    max="8"
+                    step="0.001"
+                    value="0"
+                    aria-label="Seek video"
+                  /><span id="play-time"></span
+                  ><select id="speed" aria-label="Playback speed">
+                    <option value="0.5">0.5×</option>
+                    <option value="1" selected>1×</option>
+                    <option value="2">2×</option>
+                  </select>
+                </div>
+              </div>
+              <div class="panel timeline-panel">
+                <div class="panel-heading">
+                  <h3>Temporal annotations</h3>
+                  <div>
+                    <span class="tiny"
+                      >Space play · ← → seek · [ ] boundary</span
+                    >
+                  </div>
+                </div>
+                <div class="track-label">
+                  <span>HUMAN REVISION</span><span id="revision-label"></span>
+                </div>
+                <div id="human-track" class="timeline"></div>
+                <div class="track-label">
+                  <span>MACHINE CANDIDATES <em>heuristic</em></span
+                  ><button id="load-suggestions" class="text-button">
+                    Use candidates ↓
+                  </button>
+                </div>
+                <div id="machine-track" class="timeline machine"></div>
+                <div class="axis">
+                  <span>0s</span><span id="axis-mid"></span
+                  ><span id="axis-end"></span>
+                </div>
+                <div class="timeline-footer">
+                  <button id="add-segment">+ Add segment at playhead</button
+                  ><label
+                    ><input type="checkbox" id="manual-mode" /> Manual
+                    condition</label
+                  >
+                </div>
+              </div>
+              <div class="panel streams-panel">
+                <div class="panel-heading">
+                  <h3>Synchronized streams</h3>
+                  <span id="stream-count" class="tiny"></span>
+                </div>
+                <canvas
+                  id="streams"
+                  height="110"
+                  aria-label="Robot stream plot"
+                ></canvas>
+                <div id="stream-legend" class="tiny"></div>
+                <p class="tiny" id="clock-note"></p>
+              </div>
+            </div>
+            <aside class="review-column">
+              <div class="panel">
+                <div class="panel-heading">
+                  <h3>Review decision</h3>
+                  <span class="step">01 / INSPECT</span>
+                </div>
+                <div id="signals"></div>
+                <div class="divider"></div>
+                <div class="panel-heading">
+                  <h3>Segment editor</h3>
+                  <span id="segment-count" class="tiny"></span>
+                </div>
+                <div id="segments"></div>
+                <div class="divider"></div>
+                <label class="field"
+                  >Task outcome<select id="outcome">
+                    <option value="unknown">Unknown</option>
+                    <option value="success">Success</option>
+                    <option value="failure">Failure</option>
+                  </select></label
+                >
+                <div class="field">
+                  Evidence flags
+                  <div class="flag-options" id="flags"></div>
+                </div>
+                <label class="field"
+                  >Reviewer<input
+                    id="actor"
+                    placeholder="Your reviewer ID"
+                    value="local-reviewer"
+                    maxlength="100" /></label
+                ><label class="field"
+                  >Decision note<textarea
+                    id="rationale"
+                    rows="2"
+                    placeholder="What did you observe or correct?"
+                  ></textarea>
+                </label>
+                <div class="timing">
+                  <span>ACTIVE <b id="active-time">0s</b></span
+                  ><span>WALL <b id="wall-time">0s</b></span
+                  ><button id="pause-timer" class="text-button">Pause</button>
+                </div>
+                <p class="tiny">
+                  Includes playback and corrections. Pauses after 30s idle or
+                  when hidden. Client reported.
+                </p>
+                <div class="actions">
+                  <button id="save" class="primary">Save draft</button
+                  ><button id="accept">Accept revision ✓</button>
+                </div>
+                <div class="secondary-actions">
+                  <button id="uncertain" class="text-button">
+                    Needs adjudication</button
+                  ><button id="exclude" class="text-button">Exclude</button>
+                </div>
+                <div id="message" role="status" aria-live="polite"></div>
+              </div>
+              <div class="panel audit">
+                <div class="panel-heading">
+                  <h3>Revision history</h3>
+                  <span id="history-count" class="tiny"></span>
+                </div>
+                <div id="history"></div>
+              </div>
+            </aside>
+          </div>
+          <footer>
+            Episode v0.1
+            <span
+              >Half-open intervals [start, end) · Immutable source snapshots ·
+              Local storage</span
+            >
+          </footer>
+        </section>
+      </main>
+    </div>
+    <dialog id="export-dialog">
+      <div class="panel-heading">
+        <h2>Build a dataset version</h2>
+        <button id="export-close" aria-label="Close export">×</button>
+      </div>
+      <p class="subtle">
+        Accepted revisions only. Sessions and duplicate media must stay in one
+        split.
+      </p>
+      <div id="export-list"></div>
+      <button id="export-confirm" class="primary">Validate & export</button>
+      <div id="export-result" role="status"></div>
+      <p class="tiny">
+        JSONL + Parquet + hashed manifest. Media stays in the local source
+        store.
+      </p>
+    </dialog>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

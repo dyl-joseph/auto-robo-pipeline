@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "source_id": "replace-with-source-identity",
+  "release": "replace-with-release",
+  "task": "Move the cup",
+  "session": "recording-session-01",
+  "video": "episode.mp4",
+  "license": "replace-with-verified-license",
+  "license_url": "replace-with-authoritative-terms-url",
+  "provenance": "Describe the actual acquisition and any transformations",
+  "data_kind": "real",
+  "streams": []
+}

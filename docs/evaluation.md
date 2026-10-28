@@ -1,6 +1,6 @@
 # Evaluation protocol
 
-Status: proposed protocol. No dataset has been annotated and no experimental results exist yet. Freeze numeric thresholds, split manifests, and analysis rules before the held-out run.
+Status: proposed human-study protocol. The matching, timing, agreement and fixed-budget harness is implemented in `robo/evaluation.py` and exercised with explicit fixtures. No human study or real robot benchmark has been run. See [results](results.md) for the protocol input fields and observed software checks. Freeze numeric thresholds, split manifests, and analysis rules before a held-out run.
 
 ## Hypothesis and decision rule
 
