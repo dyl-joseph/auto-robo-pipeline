@@ -1,0 +1,51 @@
+{
+  "kind": "small_official_pi05_frozen_encoder_mlx_action_expert",
+  "versions": {
+    "mlx": "0.32.4",
+    "lerobot": "0.6.1",
+    "torch": "2.11.0",
+    "transformers": "5.5.4"
+  },
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "mlx_device": "Device(gpu, 0)",
+  "metal_available": true,
+  "torch_device": "mps:0",
+  "mps_cpu_fallback": false,
+  "mlx_enable_tf32": false,
+  "config": {
+    "width": 32,
+    "depth": 2,
+    "mlp_dim": 64,
+    "heads": 8,
+    "kv_heads": 1,
+    "head_dim": 8,
+    "action_dim": 8,
+    "horizon": 3,
+    "min_period": 0.004,
+    "max_period": 4.0
+  },
+  "trainable_parameters": 40008,
+  "gradient_tensors_compared": 32,
+  "reference_loss": 1.9116802215576172,
+  "mlx_loss": 1.9116802215576172,
+  "loss_absolute_error": 0.0,
+  "gradient_max_absolute_error": 2.574670361354947e-07,
+  "sample_max_absolute_error": 2.384185791015625e-07,
+  "training_steps": [
+    {
+      "loss": 1.7929328680038452,
+      "gradient_norm": 2.593369722366333,
+      "step": 1
+    },
+    {
+      "loss": 1.7964611053466797,
+      "gradient_norm": 2.4747848510742188,
+      "step": 2
+    }
+  ],
+  "checkpoint_next_update_exact": true,
+  "elapsed_seconds": 0.3436780420015566,
+  "pretrained_full_model_run": false,
+  "robot_policy_evaluation": false
+}

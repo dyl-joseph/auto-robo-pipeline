@@ -81,7 +81,7 @@ The existing [controlled benchmark](docs/messy-droid.md) is a limited starting p
 
 The [LeRobot adapter](docs/lerobot.md) writes local v3 datasets and checks them with the official loader and PyTorch DataLoader. The DROID test compares all 119 loaded state/action vectors with the decoded source. Its action schema is seven absolute joint positions and one gripper closure value.
 
-The [MLX adapter](docs/mlx.md) trains the π₀.₅ action expert while keeping the official LeRobot encoder frozen. Small-model CPU tests compare loss, all gradients, an optimizer update and checkpoint resume against the official implementation. Full pretrained execution still needs an authorized tokenizer and local weights. M5 Pro memory, Metal performance and policy quality have not been measured.
+The [MLX adapter](docs/mlx.md) trains the π₀.₅ action expert while keeping the official LeRobot encoder frozen. On the Mac, all 14 model tests use MLX Metal with the official encoder and reference on MPS. CPU fallback is disabled. A [full pretrained inference run](docs/evidence/pi05-synthetic-metal.json) also passes from generated camera images, state and task text through the official preprocessing and postprocessing. Its 50-step, 32-dimension action chunk matches the full MPS reference within `6.11e-7`. This uses synthetic statistics and no real dataset. Memory use, sustained Metal performance and policy quality have not been measured.
 
 ## Verify a change
 

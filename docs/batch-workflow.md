@@ -74,7 +74,7 @@ Reports count inputs, unique prepared episodes, duplicate records, failures by s
 
 ## Before pretrained PI05 use
 
-Review/export works without PI weights. The [MLX adapter](mlx.md) has a separate runtime and small-model CPU verification. Inspect supplied local assets without downloading anything:
+Review/export works without PI weights. The [MLX adapter](mlx.md) has a separate runtime with local MPS and MLX Metal verification. Inspect supplied local assets without downloading anything:
 
 ```bash
 uv run --locked python -m robo preflight \
@@ -83,4 +83,4 @@ uv run --locked python -m robo preflight \
   --metal-evidence artifacts/mlx-metal.json
 ```
 
-The report distinguishes review readiness, local file checks and recorded Metal evidence. Full pretrained execution remains unverified. Google's official tokenizer returned HTTP 401 in the cloud environment; an authorized local tokenizer is still needed. A small-model Metal check does not establish whether full pretrained training fits or performs well on the M5 Pro.
+The report distinguishes review readiness, local file checks and recorded small-model Metal evidence. It checks a saved Hugging Face tokenizer directory and does not execute the model. The separate [full synthetic inference command](mlx.md#run-full-inference-with-synthetic-observations) uses the official public SentencePiece asset and has passed on the M5 Pro. Full pretrained training and sustained performance remain unmeasured.

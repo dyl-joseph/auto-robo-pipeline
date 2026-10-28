@@ -7,7 +7,7 @@ from mlx.utils import tree_flatten
 
 from .bridge import as_mlx, encode_prefix, expert_from_torch
 from .model import Prefix
-from .reference import small_inputs, small_reference
+from .reference import reference_device, small_inputs, small_reference
 from .training import Trainer
 
 
@@ -15,6 +15,12 @@ from .training import Trainer
 def case():
     core = small_reference()
     batch = small_inputs()
+    device = reference_device().type
+    assert {p.device.type for p in core.parameters()} == {device}
+    assert all(x.device.type == device for x in (*batch["images"], *batch["img_masks"]))
+    assert all(
+        batch[key].device.type == device for key in ("tokens", "masks", "actions", "noise", "time")
+    )
     prefix = encode_prefix(
         core, batch["images"], batch["img_masks"], batch["tokens"], batch["masks"]
     )
@@ -27,7 +33,9 @@ def test_official_joint_forward_loss_and_all_expert_gradients(case):
     reference.backward()
     arguments = [as_mlx(batch[name]) for name in ("actions", "noise", "time")]
     loss, grads = nn.value_and_grad(expert, lambda: expert.loss(*arguments, prefix))()
-    np.testing.assert_allclose(np.array(loss), reference.detach().numpy(), atol=3e-5, rtol=3e-5)
+    np.testing.assert_allclose(
+        np.array(loss), reference.detach().cpu().numpy(), atol=3e-5, rtol=3e-5
+    )
     expected = dict(core.named_parameters())
     for name, gradient in tree_flatten(grads):
         original = (
@@ -37,7 +45,11 @@ def test_official_joint_forward_loss_and_all_expert_gradients(case):
         )
         assert expected[original].grad is not None, original
         np.testing.assert_allclose(
-            np.array(gradient), expected[original].grad.numpy(), atol=4e-5, rtol=2e-3, err_msg=name
+            np.array(gradient),
+            expected[original].grad.cpu().numpy(),
+            atol=4e-5,
+            rtol=2e-3,
+            err_msg=name,
         )
     assert all(p.grad is None for p in core.paligemma_with_expert.paligemma.parameters())
     assert np.linalg.norm(np.array(grads["layers"][0]["self_attn"]["q_proj"]["weight"])) > 0
@@ -78,7 +90,7 @@ def test_official_euler_sampling(case):
         noise=batch["noise"],
         num_steps=3,
     )
-    np.testing.assert_allclose(np.array(actual), expected.numpy(), atol=5e-5, rtol=5e-5)
+    np.testing.assert_allclose(np.array(actual), expected.cpu().numpy(), atol=5e-5, rtol=5e-5)
 
 
 def test_reject_wrong_cache_layout_and_chunk(case):
@@ -101,9 +113,9 @@ def test_optimizer_update_matches_official_loss(case):
     _, noise_key, time_key = mx.random.split(trainer.key, 3)
     batch["noise"] = torch.from_numpy(
         np.array(mx.random.normal(batch["actions"].shape, key=noise_key))
-    )
+    ).to(batch["actions"].device)
     time = mx.random.uniform(shape=(2,), key=time_key) ** (1 / 1.5) * 0.999 + 0.001
-    batch["time"] = torch.from_numpy(np.array(time))
+    batch["time"] = torch.from_numpy(np.array(time)).to(batch["actions"].device)
     optimizer = torch.optim.AdamW(
         [p for p in core.parameters() if p.requires_grad],
         lr=1e-3,

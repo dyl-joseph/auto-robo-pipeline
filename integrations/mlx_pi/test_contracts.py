@@ -15,7 +15,7 @@ from safetensors.numpy import save_file
 from robo.droid import training_schema
 
 from .bridge import expert_from_torch, validate_droid_schema
-from .reference import small_reference
+from .reference import reference_device, small_reference
 from .weights import checkpoint_name, expected_shapes, load_expert
 
 
@@ -47,14 +47,17 @@ def test_official_image_resize_layout_range_and_missing_camera_mask():
     torch.nn.Module.__init__(policy)
     policy.model = small_reference()
     policy.config = PI05Config(
-        device="cpu",
+        device=str(reference_device()),
         image_resolution=(16, 16),
         input_features={
             "observation.images.base": PolicyFeature(type=FeatureType.VISUAL, shape=(3, 16, 16)),
             "observation.images.wrist": PolicyFeature(type=FeatureType.VISUAL, shape=(3, 16, 16)),
         },
     )
-    images, masks = policy._preprocess_images({"observation.images.base": torch.ones(2, 3, 8, 12)})
+    images, masks = policy._preprocess_images(
+        {"observation.images.base": torch.ones(2, 3, 8, 12, device=reference_device())}
+    )
+    assert all(x.device.type == reference_device().type for x in (*images, *masks))
     assert [x.shape for x in images] == [(2, 3, 16, 16)] * 2
     assert masks[0].all() and not masks[1].any()
     assert images[0].max() == 1 and images[0].min() == -1
@@ -64,7 +67,9 @@ def test_official_image_resize_layout_range_and_missing_camera_mask():
 def test_official_discrete_state_prompt_requires_state_and_task():
     step = Pi05PrepareStateTokenizerProcessorStep()
     transition = {
-        TransitionKey.OBSERVATION: {"observation.state": torch.tensor([[-1.0, 0.0, 1.0]])},
+        TransitionKey.OBSERVATION: {
+            "observation.state": torch.tensor([[-1.0, 0.0, 1.0]], device=reference_device())
+        },
         TransitionKey.COMPLEMENTARY_DATA: {"task": [" pick_up\n cup "]},
     }
     result = step(copy.deepcopy(transition))
