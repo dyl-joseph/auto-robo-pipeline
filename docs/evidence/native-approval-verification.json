@@ -1,0 +1,88 @@
+{
+  "evidence_kind": "synthetic_fixture",
+  "description": "Automated native browser correction followed by official SDK approval/export checks; not human-study evidence.",
+  "native_identity": {
+    "instance": "http://testserver",
+    "task_id": 2,
+    "annotation_id": 2,
+    "reviewer_id": 1,
+    "updated_at": "2026-10-28T13:02:06.014946+00:00"
+  },
+  "saved_fields": {
+    "outcome": "failure",
+    "quality_flags": [
+      "recovery"
+    ],
+    "reviewer_evidence": [
+      "Automated native Label Studio GUI correction; synthetic fixture, not human study evidence."
+    ]
+  },
+  "timing": {
+    "active_s": null,
+    "wall_s": null,
+    "native_lead_time_s": 3.171,
+    "source": "native_active_time_unmeasured"
+  },
+  "draft_revision": 1,
+  "accepted_revision": 2,
+  "accepted_snapshot_hash": "94e9c8e3839e07ef4b42a5b77cf4101a11d80ee3eae012ce64c28d70d42fe08c",
+  "machine_prediction_hash": "67db7974dc0fd391c996a643d6d1b5fed50d5efb91ec7ec89ed1e14e5465e25a",
+  "first_boundary_evidence": {
+    "end": {
+      "episode_time_s": 0.5,
+      "following_source_pts": 7168,
+      "is_measured_source_boundary": false,
+      "preceding_source_pts": 4096,
+      "source_bracket_s": [
+        0.3333333333333333,
+        0.5833333333333334
+      ],
+      "source_bracket_width_s": 0.25
+    },
+    "result_id": "segment-0",
+    "start": {
+      "episode_time_s": 0.0,
+      "following_source_pts": 0,
+      "is_measured_source_boundary": true,
+      "preceding_source_pts": 0,
+      "source_bracket_s": [
+        0.0,
+        0.0
+      ],
+      "source_bracket_width_s": 0.0
+    }
+  },
+  "export": {
+    "episode_count": 1,
+    "files": {
+      "episodes.jsonl": "1ac86b28ee9e89f75fb9de6ac6431587337dd3de701af1771acd53be082dce9e",
+      "episodes.parquet": "1fbc5b3f33999969a07898cb9f97903d2757ff6d299c4cfd2ed0fed152eec1b3"
+    },
+    "group_count": 1,
+    "media_policy": "media referenced by SHA256, not bundled; resolve in local source store",
+    "policy": "latest accepted revision; grouped by session and exact media duplicates",
+    "records_hash": "963cc845b1b95a9b8135b9ce06079dd7a8126906049e43b501bd266948ebdab0",
+    "schema_version": 1,
+    "selection": [
+      {
+        "episode_id": "e0180261eb0c3f58db0e7e32",
+        "revision": 2,
+        "split": "train"
+      }
+    ],
+    "software_version": "0.1.0",
+    "version": "2051a38377f97945c9e1884c"
+  },
+  "freshness_receipts": [
+    {
+      "episode_id": "e0180261eb0c3f58db0e7e32",
+      "observed_at": "2026-10-28T13:02:08.166222+00:00",
+      "revision": 2,
+      "snapshot_hash": "94e9c8e3839e07ef4b42a5b77cf4101a11d80ee3eae012ce64c28d70d42fe08c"
+    }
+  ],
+  "changed_native_content_blocks_new_export": true,
+  "historical_export_remains_valid": true,
+  "rejected_refresh_is_idempotent": true,
+  "full_raw_evidence": "CI artifact: artifacts/labelstudio-approval.json"
+}

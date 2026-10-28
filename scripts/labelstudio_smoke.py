@@ -327,6 +327,69 @@ def run(directory: Path):
                 "Native temporal edit -> reload -> SDK export -> "
                 "review grid and measured source brackets passed"
             )
+            from robo.export import validate_export
+            from robo.native_review import NativeReviewBridge
+            from robo.store import Conflict
+
+            bridge = NativeReviewBridge(sdk, store, "http://testserver")
+            bridge.register(bundle, project_id, browser_task_id)
+            native_id = exported_task["annotations"][0]["id"]
+            episode_id = episodes[0]["id"]
+            draft = bridge.refresh(
+                episode_id, native_id, 0, "fixture-importer", "Native GUI correction"
+            )
+            assert draft["outcome"] == "failure"
+            assert draft["quality_flags"] == ["recovery"]
+            assert draft["native"]["reviewer_evidence"]
+            assert draft["active_s"] is None and draft["wall_s"] is None
+            assert bridge.refresh(episode_id, native_id, 1, "fixture-importer", "Repeat") == draft
+            accepted = bridge.decide(
+                episode_id, 1, "accept", "fixture-approver", "Explicit fixture approval"
+            )
+            selection = [{"episode_id": episode_id, "revision": 2, "split": "train"}]
+            release = directory / "accepted-export"
+            result = bridge.export(selection, release)
+            assert bridge.export(selection, release)["manifest"] == result["manifest"]
+            record = validate_export(release)[0]
+            assert record["annotation"] == accepted
+            assert record["annotation"]["native"]["boundary_evidence"][0]["end"] == boundary
+            changed = json.loads(json.dumps(exported_task["annotations"][0]["result"]))
+            changed[0]["value"]["ranges"][0]["end"] = 5
+            sdk.annotations.update(native_id, result=changed)
+            try:
+                bridge.export(selection, release)
+            except Conflict:
+                pass
+            else:
+                raise AssertionError("new export accepted a stale native revision")
+            assert validate_export(release)[0] == record
+            revised = bridge.refresh(
+                episode_id, native_id, 2, "fixture-importer", "Changed native content"
+            )
+            assert revised["status"] == "draft" and revised["revision"] == 3
+            rejected = bridge.decide(
+                episode_id, 3, "reject", "fixture-approver", "Fixture rejection"
+            )
+            assert (
+                bridge.refresh(episode_id, native_id, 4, "fixture-importer", "Repeat") == rejected
+            )
+            atomic_json(
+                Path("artifacts/labelstudio-approval.json"),
+                {
+                    "evidence_kind": "synthetic_fixture",
+                    "native_draft": draft,
+                    "accepted_revision": accepted,
+                    "export": result,
+                    "changed_native_content_blocks_new_export": True,
+                    "historical_export_remains_valid": True,
+                    "rejected_refresh_is_idempotent": True,
+                    "active_human_time_measured": False,
+                },
+            )
+            print(
+                "Native SDK refresh -> explicit approval -> immutable export -> "
+                "edit invalidation -> rejection passed"
+            )
         finally:
             server.shutdown()
             server.server_close()

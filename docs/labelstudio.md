@@ -10,7 +10,7 @@ The labeling XML is [review.xml](../integrations/labelstudio/review.xml). Its cr
 
 The first-slice manual path uses the normal Label Studio project setup/import UI and a project-scoped Local Files storage rooted at `STORE/review_proxy`. Open imported tasks by clicking their row in the native Data Manager table. The application document root is the selected store, while the project storage authorizes only the review proxy subdirectory. Do not authorize the full filesystem or expose the development server publicly.
 
-For automation, `publish_bundle()` accepts an already authorized official SDK client. It creates a project, authorizes its proxy storage and imports the task/predictions, returning a trusted source/task/proxy binding. The bridge does not create an API credential for that client. `annotation_snapshot()` validates native SDK JSON exports against that binding and emits draft snapshots. Promotion of these snapshots to the existing accepted-export workflow remains a subsequent integration gate.
+For automation, `publish_bundle()` accepts an already authorized official SDK client. It creates a project, authorizes its proxy storage and imports the task/predictions, returning a trusted source/task/proxy binding. The bridge does not create an API credential for that client. `annotation_snapshot()` validates native SDK JSON exports against that binding and emits draft snapshots. The [native approval bridge](native-approval.md) now registers the original prepared bundle, refreshes the chosen saved annotation, and requires an explicit fresh accept/reject decision before a checked training export.
 
 ## Timing and frame semantics
 
@@ -71,7 +71,7 @@ The test asserts the two known upstream failures as controls for this pinned rel
 
 ## Open gates
 
-Real DROID acquisition/validation, native annotation approval/timing orchestration, actual LeRobot creation and loader round-trip, and PI-family MLX parity/training are not complete. The training target is now the user's M5 Pro 48 GB machine; prior CUDA planning is historical. Existing community inference ports have not been installed or reused without resolved permissions. MLX's documented Linux CPU support may enable genuine small-shape gradient/parity/checkpoint tests before separate Apple Metal verification.
+Real DROID acquisition/validation, measured active human timing, actual LeRobot creation and loader round-trip, and PI-family MLX parity/training are not complete. The training target is now the user's M5 Pro 48 GB machine; prior CUDA planning is historical. Existing community inference ports have not been installed or reused without resolved permissions. MLX's documented Linux CPU support may enable genuine small-shape gradient/parity/checkpoint tests before separate Apple Metal verification.
 
 ## Primary references
 
