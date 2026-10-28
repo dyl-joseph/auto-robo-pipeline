@@ -75,6 +75,16 @@ class NativeReviewBridge:
         if config_hash(project.label_config) != config_hash(bundle["label_config"]):
             raise ValueError("native labeling configuration differs from the prepared review clock")
         annotation_snapshot(self.store, binding, {**task, "annotations": []}, bundle["proxy"])
+        if binding.get("semantic_prediction"):
+            from robo.semantic_review import bound_prediction, prediction_results
+
+            _, row, _ = bound_prediction(self.store, binding)
+            expected_results = prediction_results(row)
+            expected_predictions = bundle["task"]["predictions"]
+            if len(expected_predictions) != bool(expected_results) or (
+                expected_results and expected_predictions[0]["result"] != expected_results
+            ):
+                raise ValueError("semantic task differs from its uncorrected prediction snapshot")
         actual = [prediction_payload(p) for p in task["predictions"]]
         expected = [prediction_payload(p) for p in bundle["task"]["predictions"]]
         if actual != expected:
@@ -183,6 +193,8 @@ class NativeReviewBridge:
             "native_lead_time_s": lead_time,
             "active_time_policy": "unmeasured; native lead_time is not active correction time",
         }
+        if "semantic_review" in selected:
+            source["semantic_review"] = selected["semantic_review"]
         source["snapshot_hash"] = digest(source)
         source["observed_at"] = datetime.now(UTC).isoformat(timespec="microseconds")
         return {
@@ -227,6 +239,11 @@ class NativeReviewBridge:
             raise ValueError("refresh a native annotation as a draft before deciding")
         observation = self.observe(episode_id, revision["native"]["annotation_id"])
         native = observation.pop("native")
+        if decision == "accept" and native.get("semantic_review", {}).get("complete") is False:
+            raise ValueError(
+                "complete semantic coverage is required before acceptance; "
+                "label unknown spans explicitly"
+            )
         edit = Edit(
             expected_revision=expected_revision,
             actor=actor,
