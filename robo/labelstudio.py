@@ -168,9 +168,10 @@ def prepare_proxy(store: Store, episode_id: str, fps: int | None = None) -> dict
             for dim in range(len(stream["values"][0]))
         },
         "policy": (
-            "CFR review proxy; hold last measured source frame. Display CSV uses nearest "
+            "CFR review proxy; hold last source frame. Display CSV uses nearest "
             "samples with null gaps; raw streams unchanged."
         ),
+        "source_video_timing": episode.get("video_timing", "source_pts"),
         "files": {name: file_hash(directory / name) for name in ("video.mp4", "sensors.csv")},
     }
     result["artifact_hash"] = digest(result)
@@ -289,7 +290,12 @@ def task_bundle(store: Store, episode_id: str, fps: int | None = None) -> dict:
                 f"{episode['data_kind'].upper()} · {episode['source_id']} · "
                 f"{proxy['fps']} fps review grid · "
                 f"{proxy['fidelity']['skipped_source_frame_count']} "
-                "source frames omitted · measured PTS in provenance"
+                "source frames omitted · "
+                + (
+                    "inferred nominal timing; no capture timestamps"
+                    if episode.get("video_timing") == "inferred_nominal_fps"
+                    else "source PTS in provenance"
+                )
             ),
             "episode_id": episode_id,
         },
@@ -436,7 +442,11 @@ def boundary_evidence(results: list[dict], proxy: dict, episode: dict) -> list[d
         b = clock[right] if right < len(clock) else Fraction(str(episode["duration_s"]))
         return {
             "episode_time_s": float(target),
-            "is_measured_source_boundary": exact,
+            "is_measured_source_boundary": (
+                exact and episode.get("video_timing", "source_pts") == "source_pts"
+            ),
+            "is_source_frame_boundary": exact,
+            "source_video_timing": episode.get("video_timing", "source_pts"),
             "preceding_source_pts": ticks[left],
             "following_source_pts": ticks[right] if right < len(ticks) else None,
             "source_bracket_s": [float(a), float(b)],

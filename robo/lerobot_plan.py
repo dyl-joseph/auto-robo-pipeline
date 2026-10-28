@@ -113,6 +113,8 @@ def plan_episode(record: dict, schema: TrainingSchema) -> dict:
         "features": features,
         "labels": labels,
         "alignment": {
+            "source_video_timing": episode.get("video_timing", "source_pts"),
+            "timestamp_authority": episode.get("timestamp_authority", "source video PTS"),
             "timestamps_s": grid.tolist(),
             "video_frame_indices": video_indices.tolist(),
             "video_original_pts": [episode["original_pts"][i] for i in video_indices],

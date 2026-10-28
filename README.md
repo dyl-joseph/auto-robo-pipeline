@@ -23,7 +23,7 @@ uv run --locked python -m robo serve
 
 For this first slice, create a Label Studio project, paste `artifacts/labelstudio-bundle/review.xml` into its labeling configuration, and import `tasks.json`. Add Local Files source storage at the `local_storage_path` printed by the preparation command, with **Treat every object as a source file** enabled. Do not sync the proxy directory as new tasks; the supplied tasks already bind video and sensor files. [Integration guide](docs/labelstudio.md) explains SDK automation, frame precision and verification; [design notes](docs/design.md) document the PI-inspired styling and retained Label Studio branding.
 
-The demonstration contains six generated illustrated episodes, eight seconds each. Its state/action streams are generated fixtures. It validates software mechanics and does **not** satisfy the real-DROID acceptance gate or establish human annotation savings.
+The demonstration contains six generated illustrated episodes, eight seconds each. Its state/action streams are generated fixtures. A separate [real DROID pilot](docs/droid.md) downloads one pinned 9.54 MB official shard and exercises native correction/export plus official LeRobot loading on its 119-step episode. These automated integration checks do not establish human annotation savings or reference-label quality.
 
 After native Submit/Update, use the [approval workflow](docs/native-approval.md) to bind the task, refresh the chosen annotation into a draft, inspect it and explicitly accept or reject that revision. This thin CLI/SDK gate keeps dataset eligibility separate from saving an annotation. It uses existing authorized access and creates no credentials. The guide includes copyable commands and the precise freshness limitations.
 
@@ -31,7 +31,7 @@ After native Submit/Update, use the [approval workflow](docs/native-approval.md)
 
 ```mermaid
 flowchart LR
-    A[Video + measured source clocks] --> B[Robotics alignment / provenance bridge]
+    A[Video + explicit source clock basis] --> B[Robotics alignment / provenance bridge]
     B --> C[CFR display proxy + explicit original-PTS map]
     C --> D[Native Label Studio video / timeline / sensor GUI]
     E[Cached prediction evidence] --> D
@@ -43,20 +43,20 @@ flowchart LR
 
 | Boundary | Current state |
 | --- | --- |
-| Source ingest | Immutable video snapshots, measured PTS, optional streams, declared units/offsets and missing-data masks |
+| Source ingest | Immutable video snapshots, source PTS or explicitly inferred nominal clocks, optional streams, declared units/offsets and missing-data masks |
 | Mature review UI | Native Video, TimelineLabels and synchronized TimeSeries; project theme uses supported Style/View configuration |
 | SDK bridge | Actual project/task/prediction import, correction, native JSON export and trusted task/source/proxy validation exercised |
 | Timing/approval | Explicit accept/reject with revision freshness, pinned native provenance and checked new exports. Native `lead_time` is retained; active human time stays null and is excluded from efficiency estimates |
 | Curation/evaluation | Transparent ranking, coverage and evaluation machinery from the prototype remain reusable; integration with Label Studio task scheduling is pending |
-| Training format | Official LeRobot 0.6.1 create/finalize/load and DataLoader roundtrip exercised on synthetic data, including the native accepted artifact; explicit schema, causal alignment and hashes |
-| Real data | DROID acquisition blocked by the prior runtime proxy; no DROID bytes acquired |
+| Training format | Official LeRobot 0.6.1 create/finalize/load and DataLoader roundtrip on synthetic and real DROID native exports; explicit schema, causal alignment and hashes |
+| Real data | One official DROID episode downloaded and decoded: 119 steps, three cameras checked, one selected view reviewed/exported; inferred 15 Hz timing retained |
 | MLX / PI family | Authorized next phase targets π₀.₅ compatibility/training on M5 Pro; not implemented or measured |
 
-The constant-rate review proxy is deliberately separate from raw observations. Its manifest maps every display frame to the original source frame, integer PTS and source time. Sensor plots use a zero-anchored display grid with nearest samples and blank gaps, while original streams remain intact. Temporal exports use explicit review-grid intervals and include the measured source frames bracketing each boundary. The default proxy retains all source frames up to 60 fps; an explicit coarser rate reports omitted frames. The grid is not a lossless representation of arbitrary source timestamps. [Data contract](docs/data-contract.md) · [Dataset card](docs/dataset-card.md).
+The constant-rate review proxy is deliberately separate from raw observations. Its manifest maps every display frame to the source frame, integer PTS and source time. Sensor plots use a zero-anchored display grid with nearest samples and blank gaps, while original streams remain intact. Temporal exports include source frames bracketing each boundary and identify inferred clocks. The default proxy retains all source frames up to 60 fps; an explicit coarser rate reports omitted frames. The grid is not a lossless representation of arbitrary source timestamps. [Data contract](docs/data-contract.md) · [Dataset card](docs/dataset-card.md).
 
 ## Training dataset
 
-The [LeRobot guide](docs/lerobot.md) provides the isolated locked runtime, explicit feature schema and conversion command. An accepted version becomes a local v3 dataset with original PTS/sample provenance and one selected split. CI loads the actual native review fixture through the official loader. This is dataset interoperability evidence; PI-family training and real-DROID validation remain separate gates.
+The [LeRobot guide](docs/lerobot.md) provides the isolated locked runtime, explicit feature schema and conversion command. An accepted version becomes a local v3 dataset with original PTS/sample provenance and one selected split. CI loads the native review fixture through the official loader and includes a bounded [DROID gate](docs/droid.md). The real-data test compares every loaded state/action vector with decoded RLDS values. This is dataset interoperability evidence; PI-family training remains a separate gate.
 
 ## Verify
 

@@ -7,6 +7,13 @@ const browser = await chromium.launch({
 let page;
 const mutations = [];
 const errors = [];
+const realDroid = process.env.LS_FIXTURE_REAL_DROID === "1";
+const evidencePrefix = realDroid ? "droid" : "labelstudio";
+// Real dataset images stay in ignored local evidence, never the Git history.
+const screenshotPrefix = realDroid
+  ? "artifacts/droid"
+  : "docs/evidence/labelstudio";
+const fps = Number(process.env.LS_FIXTURE_FPS || 12);
 async function waitForVideo() {
   const video = page.locator("video");
   // A cold editor may mount after the default seven-second locator timeout.
@@ -166,7 +173,9 @@ async function review() {
     }),
   });
   await taskRow.waitFor({ state: "visible", timeout: 20000 });
-  await taskRow.getByText("Transfer cube", { exact: true }).click();
+  await taskRow
+    .getByText(process.env.LS_FIXTURE_TITLE || "Transfer cube", { exact: true })
+    .click();
   const video = await waitForVideo();
   const initialTask = await (
     await page.request.get(
@@ -235,7 +244,7 @@ async function review() {
   await waitForVideo();
   await page.locator(".episode-title").scrollIntoViewIfNeeded();
   await page.screenshot({
-    path: "docs/evidence/labelstudio-native-desktop.png",
+    path: `${screenshotPrefix}-native-desktop.png`,
     fullPage: false,
   });
   await writeFile(
@@ -245,7 +254,16 @@ async function review() {
   await expect(
     page.getByText("Robot signals · seconds", { exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".htx-timeseries-channel")).toHaveCount(2);
+  await expect(page.locator(".htx-timeseries-channel")).toHaveCount(
+    Number(process.env.LS_FIXTURE_CHANNELS || 2),
+  );
+  if (realDroid) {
+    await expect(
+      page.locator(".lsf-richtext__line").filter({
+        hasText: "inferred nominal timing; no capture timestamps",
+      }),
+    ).toBeVisible();
+  }
   expect(
     (await page.locator(".htx-timeseries-channel").allTextContents()).join(" "),
   ).not.toContain("1900");
@@ -266,11 +284,18 @@ async function review() {
     .poll(async () =>
       Math.abs((await video.evaluate((v) => v.currentTime)) - before),
     )
-    .toBeGreaterThan(1 / 12);
-  const note =
-    "Automated native Label Studio GUI correction; synthetic fixture, not human study evidence.";
-  await page.getByRole("radio", { name: /^failure\[/ }).check();
-  await page.getByRole("checkbox", { name: /^recovery\[/ }).check();
+    .toBeGreaterThan(1 / fps);
+  const note = realDroid
+    ? "Automated native GUI correction on real DROID; integration check only, labels unvalidated, timing inferred."
+    : "Automated native Label Studio GUI correction; synthetic fixture, not human study evidence.";
+  await page
+    .getByRole("radio", { name: realDroid ? /^unknown\[/ : /^failure\[/ })
+    .check();
+  await page
+    .getByRole("checkbox", {
+      name: realDroid ? /^incomplete\[/ : /^recovery\[/,
+    })
+    .check();
   await page
     .getByPlaceholder("Evidence, corrections, and uncertainty")
     .fill(note);
@@ -351,19 +376,21 @@ async function review() {
   await expect(page.locator(".lsf-menu-header__trigger svg")).toBeVisible();
   await writeFile("artifacts/labelstudio-design.json", JSON.stringify(design));
   await page.screenshot({
-    path: "docs/evidence/labelstudio-native.png",
+    path: `${screenshotPrefix}-native.png`,
     fullPage: true,
   });
   expect(errors).toEqual([]);
   await context.close();
   await copyFile(
     await page.video().path(),
-    "docs/evidence/labelstudio-walkthrough.webm",
+    `${screenshotPrefix}-walkthrough.webm`,
   );
   await writeFile(
-    "artifacts/labelstudio-browser.json",
+    `artifacts/${evidencePrefix}-browser.json`,
     JSON.stringify({
-      evidence_kind: "synthetic_fixture",
+      evidence_kind: realDroid
+        ? "real_droid_automated_integration"
+        : "synthetic_fixture",
       entry_path: "native_task_table",
       cold_task_loading_control: loadingContract,
       cpu_throttle_rate: Number(process.env.LS_CPU_RATE || 1),
@@ -371,8 +398,8 @@ async function review() {
       sensor_seek_sync: true,
       native_annotation_update: true,
       native_temporal_edit: { start: 1, end: 6 },
-      native_outcome: "failure",
-      native_quality: ["recovery"],
+      native_outcome: realDroid ? "unknown" : "failure",
+      native_quality: realDroid ? ["incomplete"] : ["recovery"],
       mutation_trace: mutations,
       script_errors: errors,
     }),

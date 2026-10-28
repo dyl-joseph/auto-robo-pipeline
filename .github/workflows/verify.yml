@@ -91,3 +91,47 @@ jobs:
             artifacts/lerobot-native.json
             artifacts/native-lerobot
           retention-days: 14
+  droid:
+    needs: lerobot
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: .cache/playwright
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      HF_HUB_OFFLINE: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      TF_CPP_MIN_LOG_LEVEL: "2"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: ./scripts/setup.sh
+      - run: uv run --locked python -m scripts.fetch_droid
+      - run: uv sync --locked --project integrations/droid
+      - run: uv run --locked --project integrations/droid python -m integrations.droid.convert data/local/droid-sample data/local/droid-converted
+      - run: npm ci --cache .cache/npm
+      - run: npx playwright install --with-deps chrome ffmpeg
+      - run: uv run --locked python -m scripts.labelstudio_smoke --browser --source data/local/droid-converted/source.json
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          ROBO_NATIVE_EXPORT_FIXTURE: artifacts/droid-native-fixture
+      - run: uv sync --locked --project integrations/lerobot
+      - run: uv run --locked --project integrations/lerobot python -m integrations.lerobot.verify_droid data/local/droid-converted artifacts/droid-native-fixture artifacts/droid-lerobot
+      # Verification metadata only. No dataset bytes, video, database or session upload.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: droid-verification-metadata
+          path: |
+            artifacts/droid-lerobot.json
+            artifacts/droid-browser.json
+            data/local/droid-converted/conversion.json
+          retention-days: 14

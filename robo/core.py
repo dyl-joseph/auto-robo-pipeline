@@ -60,6 +60,8 @@ class Source(Contract):
     license_url: str = Field(min_length=1)
     provenance: str = Field(min_length=1)
     data_kind: Literal["synthetic", "real"]
+    # Existing video sources carry their own PTS. Extracted RLDS frames do not.
+    video_timing: Literal["source_pts", "inferred_nominal_fps"] = "source_pts"
     streams: list[Stream] = Field(default_factory=list)
 
     @model_validator(mode="after")
