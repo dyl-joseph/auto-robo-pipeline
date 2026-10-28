@@ -4,7 +4,7 @@ This draft ships a working local pipeline and a reproducible evaluation harness.
 
 | Evidence | Observed outcome |
 | --- | --- |
-| Python behavior tests | 23 passed, including optional pretrained model smoke test with downloaded pinned weights |
+| Python behavior tests | 25 passed, including optional pretrained model smoke test with downloaded pinned weights |
 | Desktop Chromium | Import fixture → playback/seek → candidates → correction → save → stale-tab conflict → accept → download export → edit/reopen passed |
 | Mobile Chromium, 390×844 | Manual condition, segment creation, responsive layout and no horizontal overflow passed |
 | Dependency readiness | 12 H.264 frames decoded, Parquet round-trip, FastAPI request passed |
@@ -23,6 +23,8 @@ The browser evidence was recorded with automated actions and synthetic media. Th
 uv run --locked python -m robo evaluate examples/synthetic-evaluation.json artifacts/evaluation.json
 uv run --locked python -m robo validate-export PATH_TO_EXPORTED_VERSION
 ```
+
+[Recorded fixture evaluator output](evidence/synthetic-evaluation.json) and [pretrained smoke provenance](evidence/perception-smoke.json) are provided as reproducible machinery checks. The fixed-budget fixture deliberately has missed errors: prioritized recall is 0.5 while seeded random recall is 1.0. Those are specified synthetic inputs, not a claim that either strategy performs that way on robot data.
 
 The small evaluation example intentionally includes a wrong class and boundary offsets. It exercises matching and missed-error accounting with declared synthetic inputs. It is not a model benchmark. The report leaves human efficiency and agreement null when no real reviewer evidence is supplied.
 

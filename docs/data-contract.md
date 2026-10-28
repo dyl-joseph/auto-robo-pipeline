@@ -19,6 +19,8 @@ A stream is optional. Each supplied stream requires explicit units, strictly inc
 
 Supported modalities: state, action, sensor. Units: rad, rad/s, m, m/s, normalized, N, bool. `normalized` makes no assumption about open/closed gripper semantics. Missing modalities are warnings, never fabricated values. Coverage gaps produce null nearest indices and explicit errors; samples outside episode bounds are rejected. No interpolation is performed.
 
+The pilot accepts H.264 in MP4, at most 512 MiB, 300 seconds, 4K area and 20,000 frames per episode. Explicitly split/transcode larger or incompatible sources and record that transformation; the importer does not silently change source media. Sequential decode bounds frame memory, while PTS, streams and compact evidence remain in memory for the short clip.
+
 Video time authority is the original integer PTS and FFprobe time base. Episode zero is the first video presentation time; original PTS remain in the manifest. Stream mapping is `timestamp_s + offset_s`. A nearest source sample is valid only within the declared tolerance. A large video gap is a warning, not silently repaired.
 
 Human segments are mutually exclusive, ordered half-open intervals `[start_s, end_s)`. Gaps are allowed; overlaps and out-of-bounds endpoints fail. Taxonomy: reach, grasp, transport, release, recover, motion, hold, unknown, not_observable. Use unknown where contact or intent is ambiguous. Recovery is also a separate evidence flag; outcome is success/failure/unknown.

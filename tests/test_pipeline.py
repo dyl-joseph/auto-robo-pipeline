@@ -386,3 +386,65 @@ def test_curation_reproducible_and_duplicate_aware(fixture):
     assert first["actual_count"] == 1
     assert first == curate(store, 2)
     assert curate(store, 2, "random", 123) == curate(store, 2, "random", 123)
+
+
+def test_unselected_episode_cannot_bridge_leaking_splits(fixture, tmp_path):
+    store, manifest, body = fixture
+    a = import_episode(manifest, store)
+    body.update(source_id="bridge", video="second.mp4")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:size=160x90:rate=10:duration=2",
+            "-c:v",
+            "libx264",
+            "-threads",
+            "1",
+            str(manifest.parent / "second.mp4"),
+        ],
+        check=True,
+    )
+    atomic_json(manifest, body)
+    import_episode(manifest, store)
+    body.update(source_id="far-end", session="session-b")
+    atomic_json(manifest, body)
+    c = import_episode(manifest, store)
+    for e in (a, c):
+        accepted(store, e["id"])
+    selection = [
+        {"episode_id": a["id"], "revision": 2, "split": "train"},
+        {"episode_id": c["id"], "revision": 2, "split": "test"},
+    ]
+    with pytest.raises(ValueError, match="leakage"):
+        export_dataset(store, selection, tmp_path / "indirect")
+
+
+def test_reject_browser_incompatible_codec(fixture):
+    store, manifest, body = fixture
+    video = manifest.parent / "other.avi"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:size=160x90:rate=10:duration=1",
+            "-c:v",
+            "mpeg4",
+            "-threads",
+            "1",
+            str(video),
+        ],
+        check=True,
+    )
+    body["video"] = video.name
+    atomic_json(manifest, body)
+    with pytest.raises(ValueError, match="H.264 in MP4"):
+        import_episode(manifest, store)

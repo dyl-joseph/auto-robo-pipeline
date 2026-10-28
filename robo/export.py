@@ -29,10 +29,11 @@ def _export_dataset(store: Store, selection: list[dict], output: Path) -> dict:
     if len({row["episode_id"] for row in selection}) != len(selection):
         raise ValueError("duplicate selected episode")
     episodes = [store.episode(item["episode_id"]) for item in selection]
-    # Connected components across sessions AND duplicate media prevent indirect leakage.
-    groups = {e["id"]: {e["id"]} for e in episodes}
-    for a in episodes:
-        for b in episodes:
+    # Include unselected bridge episodes when forming leakage groups.
+    population = store.episodes()
+    groups = {e["id"]: {e["id"]} for e in population}
+    for a in population:
+        for b in population:
             if a["session"] == b["session"] or a["video_sha256"] == b["video_sha256"]:
                 merged = groups[a["id"]] | groups[b["id"]]
                 for member in merged:

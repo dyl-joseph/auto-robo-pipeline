@@ -378,10 +378,10 @@ function drawStreams() {
   const e = state.current.episode;
   $("stream-count").textContent = `${e.streams.length} available`;
   $("stream-legend").textContent =
-    e.streams.map((s) => `${s.name} (${s.units})`).join("   /   ") ||
+    e.streams.map((s) => `${s.name}[0] (${s.units})`).join("   /   ") ||
     "State, actions, and sensors unavailable for this recording.";
   $("clock-note").textContent = e.streams.length
-    ? "Original timestamps + declared offsets. Nearest sample within tolerance; unmatched frames remain null."
+    ? "First value component shown. Original times + declared offsets; unmatched frame mappings remain null."
     : "Video presentation timestamps preserved. No robot state inferred from video.";
   e.streams.forEach((stream, index) => {
     const values = stream.values.map((r) => r[0]);

@@ -14,6 +14,31 @@ from robo.store import Conflict, Store
 
 
 def probe(path: Path) -> dict:
+    summary = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration:stream=width,height",
+            "-select_streams",
+            "v:0",
+            "-of",
+            "json",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    header = json.loads(summary.stdout)
+    duration = float(header["format"]["duration"])
+    geometry = header["streams"][0]
+    if duration <= 0 or duration > 300 or geometry["width"] * geometry["height"] > 3840 * 2160:
+        raise ValueError(
+            "pilot supports clips up to 300 seconds and 4K; split larger recordings explicitly"
+        )
     result = subprocess.run(
         [
             "ffprobe",
@@ -23,7 +48,7 @@ def probe(path: Path) -> dict:
             "v:0",
             "-show_frames",
             "-show_entries",
-            "stream=width,height,time_base,duration,start_time:frame=pts,pts_time,duration_time,pkt_duration_time",
+            "stream=width,height,time_base,duration,start_time,codec_name:format=format_name:frame=pts,pts_time,duration_time,pkt_duration_time",
             "-of",
             "json",
             str(path),
@@ -37,8 +62,14 @@ def probe(path: Path) -> dict:
         raise ValueError(f"media decode errors: {result.stderr[:300]}")
     data = json.loads(result.stdout)
     stream = data["streams"][0]
+    if stream.get("codec_name") != "h264" or "mp4" not in data["format"]["format_name"]:
+        raise ValueError(
+            "browser review requires H.264 in MP4; explicitly transcode and record provenance"
+        )
     frames = data["frames"]
     pts = [float(f["pts_time"]) for f in frames]
+    if len(pts) > 20000:
+        raise ValueError("pilot supports at most 20,000 measured frames per episode")
     if len(pts) < 2 or not np.isfinite(pts).all() or np.any(np.diff(pts) <= 0):
         raise ValueError("video requires at least two strictly increasing presentation timestamps")
     tail = float(
@@ -50,6 +81,8 @@ def probe(path: Path) -> dict:
     if not np.isfinite(duration) or duration <= 0:
         raise ValueError("invalid video duration")
     return {
+        "codec": stream["codec_name"],
+        "container": data["format"]["format_name"],
         "width": stream["width"],
         "height": stream["height"],
         "time_base": stream["time_base"],
@@ -70,6 +103,8 @@ def import_episode(manifest: Path, store: Store) -> dict:
     video = (manifest.parent / source.video).resolve()
     if not video.is_file():
         raise ValueError(f"missing video: {video}")
+    if video.stat().st_size > 512 * 1024 * 1024:
+        raise ValueError("pilot video limit is 512 MiB; explicitly split larger recordings")
     media_hash = file_hash(video)
     body = source.model_dump(exclude={"video"})
     content_hash = digest({**body, "video_sha256": media_hash})
