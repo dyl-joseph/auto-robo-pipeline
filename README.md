@@ -39,6 +39,8 @@ uv run --locked python -m robo --store data/local/work batch export artifacts/ac
 
 The [batch guide](docs/batch-workflow.md) explains retries, failed inputs and queue counts. Reruns reuse completed work and check source hashes. Changed native annotations require a new approval before another export.
 
+Already have DROID TFRecord shards? The [local RLDS intake](docs/droid-local-intake.md) converts a bounded set of episodes into this batch inbox, records provenance and resumes interrupted work. It also reports incomplete shard sets. The pinned pilot remains available for a small reproducible check.
+
 ## What runs automatically
 
 ```mermaid

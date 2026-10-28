@@ -1,0 +1,57 @@
+{
+  "capture_timestamps_measured": false,
+  "evidence_kind": "official_real_droid_local_intake_regression",
+  "human_labels_validated": false,
+  "numeric_fields_and_all_camera_hashes_match_pinned_converter": true,
+  "numeric_sidecar_sha256": "78f086b532552d2620d3ee0439f7d97f69e0c1c10ec94a21adb55e6c903f60f1",
+  "resume_unchanged": true,
+  "source_files": {
+    "dataset_info.json": {
+      "bytes": 760,
+      "generation": "1710527613369658",
+      "md5": "24e71319dc1e3f0fa2ca678b86ba9abe",
+      "sha256": "58646aa75fd054a0d8670edd676620267adb32550dc228545d70a3418abb1834"
+    },
+    "features.json": {
+      "bytes": 18665,
+      "generation": "1710517501027287",
+      "md5": "0146b25aed881d4fc6332eb56f2690a6",
+      "sha256": "4c556e2e38e179e41089e07cf54273b1540d67d3c78a420898370329813c9a25"
+    },
+    "r2d2_faceblur-train.tfrecord-00009-of-00031": {
+      "bytes": 9541347,
+      "generation": "1710528094394407",
+      "md5": "f7a5b4a2b498a101adbef69f8f9a0bb7",
+      "sha256": "645d500e23e7359c21121b12fe1a1395157ba421b1b326eee7df829eb608a03d"
+    }
+  },
+  "source_mapping_matches_except_local_identity_and_provenance": true,
+  "summary": {
+    "available_declared_episodes": 1,
+    "available_shards": 1,
+    "completed_shards": 1,
+    "declared_episodes": 100,
+    "declared_shards": 31,
+    "human_labels_validated": false,
+    "missing_shards": 30,
+    "published_episodes": 1,
+    "published_steps": 119,
+    "selected_shard_bytes": 9541347
+  },
+  "user_local_data_tested": false,
+  "video_bytes_match_pinned_converter": true,
+  "batch_verification": {
+    "input_records": 1,
+    "prepared_records": 1,
+    "unique_prepared_episodes": 1,
+    "duplicate_input_records": 0,
+    "failed_records": 0,
+    "failures_by_stage": {},
+    "review_requests": 1,
+    "priority_review_requests": 1,
+    "accepted_episodes": 0,
+    "automatic_approvals": 0,
+    "human_active_seconds": null,
+    "data_review_requests": 0
+  }
+}

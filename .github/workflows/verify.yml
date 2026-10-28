@@ -144,6 +144,8 @@ jobs:
       - run: ./scripts/setup.sh
       - run: uv run --locked python -m scripts.fetch_droid
       - run: uv sync --locked --project integrations/droid
+      - run: uv run --locked --project integrations/droid python -m pytest -q integrations/droid/test_intake.py
+      - run: uv run --locked --project integrations/droid python -m integrations.droid.verify_intake data/local/droid-sample artifacts/droid-intake-real
       - run: uv run --locked --project integrations/droid python -m integrations.droid.convert data/local/droid-sample data/local/droid-converted
       - run: npm ci --cache .cache/npm
       - run: npx playwright install --with-deps chrome ffmpeg
@@ -166,6 +168,7 @@ jobs:
             artifacts/messy-droid/report.json
             artifacts/droid-lerobot.json
             artifacts/droid-browser.json
+            artifacts/droid-intake-real/verification.json
             artifacts/batch-workflow.json
             data/local/droid-converted/conversion.json
           retention-days: 14
