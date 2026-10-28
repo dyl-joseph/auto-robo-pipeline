@@ -20,12 +20,12 @@ flowchart LR
 | --- | --- |
 | `robo/ingest.py` | Validate manifests, snapshot source bytes, preserve measured integer PTS/time base and original optional streams |
 | `robo/analysis.py`, `robo/perception.py` | Cache bounded machine runs with exact config/model/source hashes; never mutate human decisions |
-| `robo/labelstudio.py` | Create a separate CFR display proxy, map native frame spans to source intervals, publish through SDK and verify exported task/source/proxy bindings |
+| `robo/labelstudio.py` | Create a separate CFR display proxy, map native frame spans to a declared review grid with measured-source brackets, publish through SDK and verify exported task/source/proxy bindings |
 | Native Label Studio | Authentication, video/timeline editing, synchronized sensor plots, annotation persistence and native export |
 | `robo/store.py`, `robo/export.py` | Existing immutable revision/acceptance, stale-write and grouped split gates; native promotion is still pending |
 | `robo/evaluation.py` | Temporal matching, error accounting and optional real reviewer measurements; fixture outputs are labeled synthetic |
 
-The source clock is authoritative. Review proxies hold the last measured frame and record each display frame's original source index, integer PTS and episode time. No FPS-derived clock silently replaces source evidence. Display sensor CSV uses declared offsets and tolerance-bound nearest samples with blank gaps; original actions/state remain intact.
+The source clock is authoritative. Review proxies hold the last measured frame and record each display frame's original source index, integer PTS and episode time. The generated review grid is explicitly distinct from measured source evidence. Source brackets expose gaps; the default proxy retains all source frames, while explicit coarse rates report omissions. Display sensor CSV uses declared offsets and tolerance-bound nearest samples with blank gaps; original actions/state remain intact.
 
 Native completion produces a draft snapshot. Label Studio's `lead_time` is raw metadata, not measured active correction time. The next bridge must explicitly reconcile updates, invalidate prior acceptance, preserve suggestion origins and reject stale approvals. Upstream annotation completion alone cannot establish these guarantees.
 

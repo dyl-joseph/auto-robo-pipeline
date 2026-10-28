@@ -2,7 +2,7 @@
 
 A local robotics data pipeline built around **Label Studio**, with project code focused on source alignment, provenance, assisted-review integration and evaluation.
 
-![Native Label Studio review — synthetic fixture](docs/evidence/labelstudio-native.png)
+![Native Label Studio review — synthetic fixture](docs/evidence/labelstudio-native-desktop.png)
 
 The first ecosystem migration slice is implemented: the real Label Studio application and official SDK import video/sensor tasks and predictions, save corrections, and export annotations against trusted source bindings. The earlier bespoke editor is a development prototype, available only through `--legacy-editor`. It is being superseded rather than maintained as a second primary product.
 
@@ -21,7 +21,7 @@ uv run --locked python -m robo serve
 
 `serve` starts native Label Studio on loopback using its normal local authentication. The installer does not provision an account or persistent API credential. Use the application's local setup/login workflow.
 
-For this first slice, create a Label Studio project, paste `artifacts/labelstudio-bundle/review.xml` into its labeling configuration, and import `tasks.json`. Add Local Files source storage at the `local_storage_path` printed by the preparation command, with **Treat every object as a source file** enabled. Do not sync the proxy directory as new tasks; the supplied tasks already bind video and sensor files. [Integration guide](docs/labelstudio.md) explains the SDK automation and verification.
+For this first slice, create a Label Studio project, paste `artifacts/labelstudio-bundle/review.xml` into its labeling configuration, and import `tasks.json`. Add Local Files source storage at the `local_storage_path` printed by the preparation command, with **Treat every object as a source file** enabled. Do not sync the proxy directory as new tasks; the supplied tasks already bind video and sensor files. [Integration guide](docs/labelstudio.md) explains SDK automation, frame precision and verification; [design notes](docs/design.md) document the PI-inspired styling and retained Label Studio branding.
 
 The demonstration contains six generated illustrated episodes, eight seconds each. Its state/action streams are generated fixtures. It validates software mechanics and does **not** satisfy the real-DROID acceptance gate or establish human annotation savings.
 
@@ -50,7 +50,7 @@ flowchart LR
 | Real data | DROID acquisition blocked by the prior runtime proxy; no DROID bytes acquired |
 | MLX / PI family | Authorized next phase targets π₀.₅ compatibility/training on M5 Pro; not implemented or measured |
 
-The constant-rate review proxy is deliberately separate from raw observations. Its manifest maps every display frame to the original source frame, integer PTS and source time. Sensor plots use a zero-anchored display grid with nearest samples and blank gaps, while original streams remain intact. Temporal exports convert native inclusive frame spans back to measured source-frame intervals. [Data contract](docs/data-contract.md) · [Dataset card](docs/dataset-card.md).
+The constant-rate review proxy is deliberately separate from raw observations. Its manifest maps every display frame to the original source frame, integer PTS and source time. Sensor plots use a zero-anchored display grid with nearest samples and blank gaps, while original streams remain intact. Temporal exports use explicit review-grid intervals and include the measured source frames bracketing each boundary. The default proxy retains all source frames up to 60 fps; an explicit coarser rate reports omitted frames. The grid is not a lossless representation of arbitrary source timestamps. [Data contract](docs/data-contract.md) · [Dataset card](docs/dataset-card.md).
 
 ## Verify
 

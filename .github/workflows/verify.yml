@@ -34,6 +34,9 @@ jobs:
       - run: npm run test:e2e
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
+      - run: uv run --locked python -m scripts.labelstudio_smoke --sync-contract
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
       - run: uv run --locked python -m scripts.labelstudio_smoke --browser
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
@@ -44,5 +47,7 @@ jobs:
           path: |
             artifacts/browser-tests
             artifacts/labelstudio-*.json
+            artifacts/labelstudio-failure*
+            artifacts/labelstudio-sync-*.png
             docs/evidence
           retention-days: 14

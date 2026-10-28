@@ -2,7 +2,7 @@
 
 Label Studio 1.23.2 and its official Python SDK 2.1.2 are locked in the default `labelstudio` dependency group. Native Video, TimelineLabels and TimeSeries own playback, temporal editing and sensor visualization. This replaces the bespoke editor as the primary application path.
 
-The labeling XML is [review.xml](../integrations/labelstudio/review.xml). Its white background, restrained title typography and spacing are applied through the supported Style/View tags. The application chrome and authentication remain Label Studio's own. There is no frontend fork or deprecated standalone frontend dependency.
+The labeling XML is [review.xml](../integrations/labelstudio/review.xml). Its cream background, compact monospace typography, serif title and square black media border follow the [reference-derived design](design.md), applied through the supported Style/View tags. Label Studio branding remains visible. The application chrome and authentication remain Label Studio's own. There is no frontend fork or deprecated standalone frontend dependency.
 
 ## Local use
 
@@ -14,17 +14,22 @@ For automation, `publish_bundle()` accepts an already authorized official SDK cl
 
 ## Timing and frame semantics
 
-Label Studio recommends constant-frame-rate video. The bridge produces a deterministic display proxy by holding the last measured source frame until its next original PTS. The proxy records every display index, source index, original integer PTS and original episode time. Raw video and robot streams remain unchanged.
+Label Studio recommends constant-frame-rate video. The bridge produces a separate display proxy by holding the last measured source frame until its next original PTS. Its default rate is the ceiling of the reciprocal of the shortest measured frame interval, up to 60 fps. It checks that every source frame appears at least once. If that cannot be achieved within the pilot limit, preparation fails rather than silently dropping observations. An explicit `--fps` opts into a different grid; the manifest and task banner report omitted source frames. This retains frame coverage, not lossless video pixels or arbitrary timestamp precision: the proxy is H.264 re-encoded.
 
-Native timeline frame spans are one-based and inclusive. Decoding uses the explicit source map and the next measured source-frame timestamp for the half-open interval end. Repeated proxy frames can snap to the same source frame; a source timestamp gap is not interpolated evidence. Boundary precision remains limited by measured source frames. Unit fixtures cover irregular PTS and duplicated display frames. The real browser test edits the first native range to frames 1–6, submits, reloads and independently exports through the SDK. Its source deliberately omits frames 5/6. The result is [0, 0.583333) in measured source time, not [0, 0.5) inferred from proxy FPS. Keep this check in release verification as editor versions change.
+Every display frame records its original source index, integer PTS and episode time. Raw video and robot streams remain unchanged. Native timeline spans are one-based and inclusive: `[a,b]` becomes `[(a-1)/fps, min(b/fps, episode_duration))` on the **generated review clock**. Adjacent ranges share the same boundary even when they divide held copies of one source frame. We do not expand both ranges to that entire source frame's interval, which would create overlaps.
 
-The display sensor CSV starts at relative zero, preventing the native TimeSeries first-row offset rule from shifting delayed streams. It uses declared clock offsets and tolerance-bound nearest samples, with blanks for missing values. This display CSV is not a replacement for original training-facing state/actions.
+Machine boundaries snap to the nearest shared grid edge, with numerical displacement at most half a grid period. Candidates that collapse to zero width are omitted and counted in trusted provenance. Human edit resolution is one grid period. Neither bound is a claim about true event accuracy: missing source observations may create much wider uncertainty. Exported `boundary_evidence` records the preceding/following measured PTS, whether the boundary exactly coincides with a measured frame, and the full source-time bracket. A recording-end boundary has no following frame.
+
+For example, the browser fixture removes source frames at 5/12 and 6/12 seconds. A native edit to frames 1–6 exports `[0, 0.5)` on the 12 fps review grid. Its end lies between measured observations at 4/12 and 7/12 seconds, an explicit 0.25-second bracket. It does **not** assert that a measured image or real action boundary exists at 0.5 seconds. Unit tests also cover adjacent native ranges within a held frame, 30/60 fps coverage, 30000/1001 fps input, coarse-rate loss, empty predictions and collapsed candidates.
+
+The display sensor CSV starts at relative zero, preventing the native TimeSeries first-row offset rule from shifting delayed streams. It uses declared clock offsets and tolerance-bound nearest samples, with blanks for missing values. The task embeds those display values as numeric JSON with null gaps and numeric seconds formatting; this avoids a calendar axis. Original state/actions remain the training-facing source.
 
 Label Studio's native `lead_time` is retained as raw metadata and is not advertised as active correction time. Browser test durations are automated software checks, not human-study results. Imported completion does not automatically approve a training annotation.
 
 ## Reproducible real-application check
 
 ```bash
+uv run --locked python -m scripts.labelstudio_smoke --sync-contract
 uv run --locked python -m scripts.labelstudio_smoke --browser
 ```
 
@@ -35,6 +40,18 @@ This starts the actual Django application with a disposable SQLite database, an 
 Label Studio auto-creates a user token, which the test immediately removes. Its native JSON export implementation dereferences `user.auth_token` even without resource downloads, so the fixture creates a temporary token for that one export call and revokes it in `finally`. No persistent API credential is retained, no token is printed, and the entire database is removed at exit. Normal application authentication is not disabled.
 
 Telemetry, Sentry and automatic update checks are disabled. The browser blocks all non-local requests. The supported feature-flag setting `fflag_fix_front_dev_3391_interactive_view_all=false` disables Compare All: in this pinned version, that mode leaves a per-annotation synchronization manager uninitialized during mounting. This is a bounded runtime workaround, not a patch to upstream code. Single-task annotation and sensor synchronization remain enabled.
+
+The browser selects the prediction and uses native **Create an annotation**. Prediction results explicitly carry `interactive_mode=false`, which the pinned frontend requires when copying imported results. It then edits, submits, checks persisted API data, reloads and independently exports via the SDK. Native exports represent predictions as IDs; the harness retrieves those IDs through the SDK and checks that the original machine results and run identity are unchanged.
+
+All browser child processes have a 90-second ceiling, with shorter per-action timeouts. Failure captures include a screenshot, accessible UI snapshot and request status trace without session credentials. These fixtures exercise actual application routes and browser actions, never internal-state setters.
+
+## Native synchronization regression
+
+`--sync-contract` reduces the official synchronized-video example to one local video and one sensor channel. It exercises a time-formatted CSV, our numeric JSON, a closed Collapse, an initially-open Collapse resized while closed, and the actual themed configuration. Browser actions perform the seeks. Read-only native state observations explain failures; the test never invokes native setters or injects seek events.
+
+In pinned Label Studio 1.23.2, both visible minimal configurations seek correctly. The closed cases retain `canvasWidth=0` while the expanded DOM has positive width; `isNotReady` then suppresses seeking. The bundled TimeSeries implementation measures width on mount/window resize, but Collapse visibility changes do not reliably refresh that stored width. This is an upstream component interaction triggered by our layout. Changing numeric values or plot selectors did not fix it. The integration avoids placing TimeSeries inside Collapse, and verifies seeking after a real viewport resize. No CSS visibility workaround or frontend fork is used.
+
+The test asserts the two known upstream failures as controls for this pinned release and verifies the supported configuration succeeds. Revisit those controls when upgrading Label Studio; a fixed upstream version can restore optional collapsing. Its JSON and screenshots are CI artifacts.
 
 ## Open gates
 

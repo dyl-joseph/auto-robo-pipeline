@@ -4,9 +4,12 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
   args: ["--no-sandbox"],
 });
-try {
+let page;
+const mutations = [];
+const errors = [];
+async function review() {
   const context = await browser.newContext({
-    viewport: { width: 1512, height: 1600 },
+    viewport: { width: 1512, height: 1050 },
     recordVideo: {
       dir: "artifacts/labelstudio-video",
       size: { width: 1200, height: 1000 },
@@ -17,10 +20,8 @@ try {
       ([name, value]) => ({ name, value, domain: "127.0.0.1", path: "/" }),
     ),
   );
-  const page = await context.newPage();
+  page = await context.newPage();
   page.setDefaultTimeout(7000);
-  const errors = [];
-  const mutations = [];
   page.on("response", async (response) => {
     const request = response.request();
     if (
@@ -47,18 +48,48 @@ try {
   await expect
     .poll(() => video.evaluate((v) => v.readyState), { timeout: 20000 })
     .toBe(4);
-  await expect(page.locator(".htx-timeseries-channel")).toHaveCount(2);
-  await video.evaluate(async (v) => {
-    v.currentTime = 1;
-    await v.play();
+  await page.locator(".episode-title").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "docs/evidence/labelstudio-native-desktop.png",
+    fullPage: false,
   });
+  await page
+    .locator(".lsf-annotation-button")
+    .filter({ has: page.locator(".lsf-annotation-button__userpic_prediction") })
+    .click();
+  await expect(
+    page.getByPlaceholder("Evidence, corrections, and uncertainty"),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Create an annotation", exact: true })
+    .click();
+  await expect(page.locator(".lsf-tree__node_type_timelineregion")).toHaveCount(
+    Number(process.env.LS_FIXTURE_SEGMENTS),
+  );
+  await expect(
+    page.getByPlaceholder("Evidence, corrections, and uncertainty"),
+  ).toBeEnabled();
+  await writeFile(
+    "artifacts/labelstudio-initial-aria.txt",
+    await page.locator("body").ariaSnapshot(),
+  );
+  await expect(
+    page.getByText("Robot signals · seconds", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".htx-timeseries-channel")).toHaveCount(2);
+  expect(
+    (await page.locator(".htx-timeseries-channel").allTextContents()).join(" "),
+  ).not.toContain("1900");
+  await page.getByTestId("playback-button:play").click();
   await expect
     .poll(() => video.evaluate((v) => v.currentTime))
     .toBeGreaterThan(1.2);
-  await video.evaluate((v) => v.pause());
+  await page.getByTestId("playback-button:pause").click();
   await page.waitForTimeout(150);
   const before = await video.evaluate((v) => v.currentTime);
-  const chart = page.locator(".htx-timeseries-channel svg").first();
+  const chart = page
+    .locator(".htx-timeseries-channel .new_brush .overlay")
+    .first();
   await chart.scrollIntoViewIfNeeded();
   const box = await chart.boundingBox();
   await chart.click({ position: { x: box.width * 0.7, y: box.height * 0.5 } });
@@ -109,7 +140,24 @@ try {
   await expect(
     page.getByRole("spinbutton", { name: "End frame", exact: true }),
   ).toHaveValue("6");
+  await expect(page.getByTestId("bottombar-update-button")).toBeInViewport();
   await page.locator(".episode-title").scrollIntoViewIfNeeded();
+  const design = await page.evaluate(() => {
+    const body = getComputedStyle(document.body);
+    const heading = getComputedStyle(document.querySelector(".episode-title"));
+    return {
+      background: body.backgroundColor,
+      font: body.fontFamily,
+      headingFont: heading.fontFamily,
+      headingSize: heading.fontSize,
+    };
+  });
+  expect(design.background).toBe("rgb(245, 244, 239)");
+  expect(design.font).toContain("monospace");
+  expect(design.headingFont).toContain("Georgia");
+  expect(design.headingSize).toBe("30px");
+  await expect(page.locator(".lsf-menu-header__trigger svg")).toBeVisible();
+  await writeFile("artifacts/labelstudio-design.json", JSON.stringify(design));
   await page.screenshot({
     path: "docs/evidence/labelstudio-native.png",
     fullPage: true,
@@ -135,6 +183,39 @@ try {
   console.log(
     "Native Label Studio playback, sensor seek, annotation update and browser checks passed",
   );
+}
+let deadline;
+try {
+  await Promise.race([
+    review(),
+    new Promise((_, reject) => {
+      deadline = setTimeout(
+        () => reject(new Error("Native review exceeded 75 seconds")),
+        75000,
+      );
+    }),
+  ]);
+} catch (error) {
+  await writeFile(
+    "artifacts/labelstudio-failure.json",
+    JSON.stringify({
+      error: String(error),
+      mutation_trace: mutations,
+      script_errors: errors,
+    }),
+  );
+  if (page) {
+    await page.screenshot({
+      path: "artifacts/labelstudio-failure.png",
+      fullPage: true,
+    });
+    await writeFile(
+      "artifacts/labelstudio-failure-aria.txt",
+      await page.locator("body").ariaSnapshot(),
+    );
+  }
+  throw error;
 } finally {
+  clearTimeout(deadline);
   await browser.close();
 }

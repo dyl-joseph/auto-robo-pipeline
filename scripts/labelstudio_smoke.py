@@ -91,8 +91,8 @@ def run(directory: Path):
 
     episodes = make_demo(directory / "robotics", count=1)
     store = Store(directory / "robotics")
-    # Deliberately irregular source PTS. A native frame boundary must survive
-    # the CFR display proxy without being decoded as frame / nominal fps.
+    # Deliberately missing source frames: review boundaries remain on a known grid,
+    # and exported evidence must expose the gap in the measured source clock.
     import subprocess
 
     sources = store.root / "demo_sources"
@@ -125,7 +125,7 @@ def run(directory: Path):
     suggest(store, episodes[0]["id"])
     bundle = task_bundle(store, episodes[0]["id"])
     # Local files are beneath the fixture's document root, not the filesystem root.
-    for field in ("video", "sensors"):
+    for field in ("video",):
         bundle["task"]["data"][field] = bundle["task"]["data"][field].replace("?d=", "?d=robotics/")
     cookies = {name: value.value for name, value in browser.cookies.items()}
     headers = {"X-CSRFToken": cookies.get("csrftoken", "")}
@@ -205,7 +205,7 @@ def run(directory: Path):
         },
     )
     print("Label Studio SDK import/correction/export smoke passed")
-    if "--browser" in sys.argv:
+    if "--browser" in sys.argv or "--sync-contract" in sys.argv:
         fresh = sdk.projects.import_tasks(
             project_id, request=[bundle["task"]], return_task_ids=True
         )
@@ -226,14 +226,78 @@ def run(directory: Path):
                 "LS_FIXTURE_COOKIES": json.dumps(cookies),
                 "LS_FIXTURE_PROJECT": str(project_id),
                 "LS_FIXTURE_TASK": str(browser_task_id),
+                "LS_FIXTURE_SEGMENTS": str(len(proposed)),
                 "PLAYWRIGHT_BROWSERS_PATH": os.environ.get(
                     "PLAYWRIGHT_BROWSERS_PATH", str(Path(".cache/playwright").resolve())
                 ),
             }
+            if "--sync-contract" in sys.argv:
+                from copy import deepcopy
+
+                cases = []
+                for variant in ("official-time", "numeric", "collapsed", "open-resized", "themed"):
+                    data = deepcopy(bundle["task"]["data"])
+                    sensor = (
+                        '<TimeSeries name="sensors" value="$sensors" valueType="json" '
+                        'sync="episode" timeColumn="time" overviewWidth="100%" __FORMAT__>'
+                        '<Channel column="gripper_0" height="100"/></TimeSeries>'
+                    )
+                    if variant == "official-time":
+                        import csv
+
+                        data["sensors"]["time"] = [
+                            f"00:00:{t:09.6f}" for t in data["sensors"]["time"]
+                        ]
+                        example = store.root / "review_proxy" / "sync-contract.csv"
+                        with example.open("w", newline="") as output:
+                            writer = csv.writer(output)
+                            writer.writerow(data["sensors"])
+                            writer.writerows(zip(*data["sensors"].values(), strict=True))
+                        data["sensors"] = (
+                            "/data/local-files/?d=robotics/review_proxy/sync-contract.csv"
+                        )
+                        sensor = sensor.replace('valueType="json"', 'valueType="url"')
+                        sensor = sensor.replace(
+                            "__FORMAT__", 'timeFormat="%H:%M:%S.%f" timeDisplayFormat="%H:%M:%S.%f"'
+                        )
+                    else:
+                        sensor = sensor.replace("__FORMAT__", 'timeDisplayFormat=".2f"')
+                    if variant in ("collapsed", "open-resized"):
+                        sensor = f'<Collapse><Panel value="Signals">{sensor}</Panel></Collapse>'
+                    if variant == "open-resized":
+                        sensor = sensor.replace("<Collapse>", '<Collapse open="true">')
+                    config = (
+                        '<View><Video name="video" value="$video" sync="episode" frameRate="12"/>'
+                        f'{sensor}<TimeSeriesLabels name="labels" toName="sensors">'
+                        '<Label value="A"/><Label value="B"/></TimeSeriesLabels></View>'
+                    )
+                    if variant == "themed":
+                        config = bundle["label_config"]
+                    project = sdk.projects.create(title=variant, label_config=config)
+                    sdk.import_storage.local.create(
+                        project=project.id,
+                        path=str(store.root / "review_proxy"),
+                        use_blob_urls=True,
+                    )
+                    task = sdk.projects.import_tasks(
+                        project.id, request=[{"data": data}], return_task_ids=True
+                    )
+                    cases.append({"name": variant, "project": project.id, "task": task.task_ids[0]})
+                environment["LS_SYNC_CASES"] = json.dumps(cases)
+                subprocess.run(
+                    ["node", "scripts/labelstudio_sync.mjs"],
+                    env=environment,
+                    check=True,
+                    timeout=90,
+                )
+                return
             subprocess.run(
                 ["node", "scripts/labelstudio_browser.mjs"], env=environment, check=True, timeout=90
             )
             exported_task = next(task for task in native_export() if task["id"] == browser_task_id)
+            prediction = sdk.predictions.get(exported_task["predictions"][0])
+            assert prediction.result == proposed
+            assert prediction.model_version == bundle["trusted_origin"]["suggestion_run"]
             snapshot = annotation_snapshot(
                 store,
                 bind_task(bundle, project_id, browser_task_id),
@@ -241,14 +305,20 @@ def run(directory: Path):
                 bundle["proxy"],
             )
             first = snapshot["annotations"][0]["segments"][0]
-            assert first == {"start_s": 0, "end_s": episodes[0]["timestamps_s"][5], "label": "hold"}
-            assert first["end_s"] != 6 / 12, "original PTS were replaced by proxy frame time"
+            assert first == {"start_s": 0, "end_s": 0.5, "label": "hold"}
+            boundary = snapshot["annotations"][0]["boundary_evidence"][0]["end"]
+            assert not boundary["is_measured_source_boundary"]
+            assert boundary["source_bracket_s"] == [4 / 12, 7 / 12]
+            assert boundary["source_bracket_width_s"] == 3 / 12
             assert not Token.objects.filter(user=user).exists()
             atomic_json(Path("artifacts/labelstudio-native-snapshot.json"), snapshot)
             evidence = json.loads(Path("artifacts/labelstudio-smoke.json").read_text())
             evidence.update(frame_semantics_browser_verified=True, native_export_boundary=first)
             atomic_json(Path("artifacts/labelstudio-smoke.json"), evidence)
-            print("Native browser temporal edit -> reload -> SDK export -> original PTS passed")
+            print(
+                "Native temporal edit -> reload -> SDK export -> "
+                "review grid and measured source brackets passed"
+            )
         finally:
             server.shutdown()
             server.server_close()
