@@ -1,6 +1,6 @@
 # Review semantic segments in Label Studio
 
-A semantic review task shows the model's subtask text beside its temporal regions. Select a region to edit its text, optional object description, action label or start/end frame. Label Studio saves the correction; the existing bridge makes the separate approval decision.
+A semantic review task shows the model's subtask text beside its temporal regions. Wait for the video and its full frame count to load, then select a region to edit its text, optional object description, action label or start/end frame. Label Studio saves the correction; the existing bridge makes the separate approval decision.
 
 ![Corrected semantic text in native Label Studio](evidence/semantic-droid-native.png)
 
@@ -90,3 +90,5 @@ uv run --locked --project integrations/lerobot python -m integrations.lerobot.ve
 Choose a fresh fixture path for each browser run. The test produces nine baseline candidates, edits text/object fields and two adjacent boundaries in the real application, saves and reloads, explicitly approves through the SDK bridge, and exports. A later text-only edit must block a new export. The official LeRobot writer, loader and DataLoader then check all 119 rows, including corrected strings, source-frame mapping, image decoding and exact float32 state/action values from RLDS. Original prediction hashes must match throughout.
 
 [Recorded evidence](evidence/semantic-review.json) describes this one-episode check. It measures neither semantic accuracy nor human effort. Full pretrained Qwen labeling and comparison against independently verified temporal references remain separate gates.
+
+The browser test also holds video requests during reload, verifies that media is still unloaded, then releases them and waits for playback readiness before selecting the saved region. Frame controls must expose the full source length before use. This covers a CI failure where the native end-frame field initially had a maximum of 1; the pinned editor clamps inputs on click/blur. Stored API ranges are checked before and after reload as well as in the editor. CI runs this path at 6× CPU throttling.
