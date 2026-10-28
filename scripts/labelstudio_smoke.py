@@ -265,6 +265,10 @@ def run(directory: Path, real_source: Path | None = None):
                     "PLAYWRIGHT_BROWSERS_PATH", str(Path(".cache/playwright").resolve())
                 ),
             }
+            if os.environ.get("LS_TASK_LOADING_CONTRACT") == "1":
+                environment["LS_LOADING_CASES"] = json.dumps(
+                    [publish_bundle(sdk, store, bundle) for _ in range(2)]
+                )
             if "--sync-contract" in sys.argv:
                 from copy import deepcopy
 
