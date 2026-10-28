@@ -58,5 +58,14 @@
   },
   "source_url": "https://droid-dataset.github.io/droid/the-droid-dataset.html",
   "license_url": "https://creativecommons.org/licenses/by/4.0/",
-  "screenshot": "semantic-droid-native.png"
+  "screenshot": "semantic-droid-native.png",
+  "browser_readiness_regression": {
+    "cpu_throttling_rate": 6,
+    "held_reload_media_requests": 3,
+    "unloaded_video_states": [],
+    "saved_ranges_verified_before_and_after_reload": true,
+    "full_frame_limit_verified_before_controls": true,
+    "application_errors": [],
+    "original_ci_failure": "https://github.com/dyl-joseph/auto-robo-pipeline/actions/runs/40778453817/job/123136806839"
+  }
 }

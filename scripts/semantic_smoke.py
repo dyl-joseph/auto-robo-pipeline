@@ -71,7 +71,7 @@ def verify_semantic(sdk, store, episode, directory, cookies):
         subprocess.run(
             ["node", "scripts/semantic_review_browser.mjs"],
             check=True,
-            timeout=120,
+            timeout=240,
             env={
                 **os.environ,
                 "LS_FIXTURE_COOKIES": json.dumps(cookies),
@@ -79,6 +79,7 @@ def verify_semantic(sdk, store, episode, directory, cookies):
                 "LS_FIXTURE_TASK": str(binding["task_id"]),
                 "LS_FIXTURE_TITLE": episode["task"],
                 "LS_FIXTURE_SEGMENTS": str(count),
+                "LS_FIXTURE_FRAMES": str(len(spec.frame_boundaries_s) - 1),
             },
         )
     finally:
