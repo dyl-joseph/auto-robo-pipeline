@@ -48,6 +48,49 @@ async function review() {
   await expect
     .poll(() => video.evaluate((v) => v.readyState), { timeout: 20000 })
     .toBe(4);
+  const initialTask = await (
+    await page.request.get(
+      `http://127.0.0.1:8134/api/tasks/${process.env.LS_FIXTURE_TASK}/`,
+    )
+  ).json();
+  console.log(
+    "Native task readiness",
+    JSON.stringify({
+      id: initialTask.id,
+      predictions: initialTask.predictions.map((p) => ({
+        id: p.id,
+        model_version: p.model_version,
+        result_count: p.result.length,
+      })),
+      annotations: initialTask.annotations.length,
+    }),
+  );
+  console.log(
+    "Native UI readiness",
+    JSON.stringify(
+      await page.evaluate(() => ({
+        flags: Object.fromEntries(
+          Object.entries(window.APP_SETTINGS?.feature_flags || {}).filter(
+            ([key]) =>
+              /prediction|model_version|interactive_view_all|annotation/.test(
+                key,
+              ),
+          ),
+        ),
+        predictionCount: window.Htx.annotationStore.predictions.length,
+        annotationCount: window.Htx.annotationStore.annotations.length,
+        annotationTabs: Array.from(
+          document.querySelectorAll(".lsf-annotation-button"),
+        ).map((el) => ({
+          id: el.getAttribute("data-annotation-id"),
+          predictionIcon: !!el.querySelector(
+            ".lsf-annotation-button__userpic_prediction",
+          ),
+        })),
+      })),
+    ),
+  );
+  expect(initialTask.predictions).toHaveLength(1);
   await page.locator(".episode-title").scrollIntoViewIfNeeded();
   await page.screenshot({
     path: "docs/evidence/labelstudio-native-desktop.png",
@@ -196,6 +239,14 @@ try {
     }),
   ]);
 } catch (error) {
+  console.error(
+    "Native review failure",
+    JSON.stringify({
+      error: String(error),
+      mutation_trace: mutations,
+      script_errors: errors,
+    }),
+  );
   await writeFile(
     "artifacts/labelstudio-failure.json",
     JSON.stringify({
@@ -211,6 +262,10 @@ try {
     });
     await writeFile(
       "artifacts/labelstudio-failure-aria.txt",
+      await page.locator("body").ariaSnapshot(),
+    );
+    console.error(
+      "Native failure UI",
       await page.locator("body").ariaSnapshot(),
     );
   }

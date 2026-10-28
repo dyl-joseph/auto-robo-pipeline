@@ -210,6 +210,14 @@ def run(directory: Path):
             project_id, request=[bundle["task"]], return_task_ids=True
         )
         browser_task_id = fresh.task_ids[0]
+        browser_task = sdk.tasks.get(browser_task_id)
+        print(
+            "Fresh browser task",
+            browser_task.id,
+            "predictions",
+            len(browser_task.predictions or []),
+        )
+        assert len(browser_task.predictions or []) == 1
         import threading
         from socketserver import ThreadingMixIn
         from wsgiref.simple_server import WSGIServer, make_server
