@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-29T19:05:50.408083+00:00",
+  "base_commit": "bfe51686b10a3df4015c0570462e83ef34a2259f",
+  "evidence_kind": "local_mac_execution_and_explicit_automated_review_fixtures",
+  "source_sha256": {
+    "scripts/setup.sh": "abb0bd40daa2587404ecfbf8565950f1547086b318ac0c6e7c4fe9b63b7221fc",
+    "tests/test_setup.py": "2ec999583395931770bf21012b3603884cc6ca5627e62bd1d89290b248dac4cc"
+  },
+  "setup": {
+    "problem": "Validated PATH Python3.12 differed from uv selection of active Conda Python3.14",
+    "fix": "Pass the exact validated Python executable to uv",
+    "regression_before": {
+      "failed": 1
+    },
+    "regression_after": {
+      "passed": 1
+    },
+    "fresh_environment_verified": true,
+    "active_conda_retained": true,
+    "python": "3.12.15",
+    "uv": "0.12.23"
+  },
+  "local_tests": {
+    "root": 306,
+    "qwen": 30,
+    "droid": 17,
+    "lerobot": 5,
+    "mlx": 14,
+    "unique_python_tests": 372,
+    "playwright_tests": 7,
+    "python_skipped": 0,
+    "lint_and_format_passed": true,
+    "computer_use_tools_used": false,
+    "labelstudio_sync_contract_passed": true
+  },
+  "blind_benchmark": {
+    "task_context_policy": "hidden-v1",
+    "device": "mps:0",
+    "candidate_limit": 5,
+    "same_declared_cohort_as_prior_execution_check": true,
+    "independently_audited_holdout": false,
+    "counts": {
+      "excluded_before_prediction": 4,
+      "failed_predictions": 0,
+      "frozen_selected": 1,
+      "judged": 0,
+      "review_routed": 1,
+      "successful_predictions": 1,
+      "unjudged_successful": 1
+    },
+    "report_sha256": "cb0f190e185d3add4ec47ad08db378c59bc77604a6335369bf811c6bfcfae44f",
+    "manifest_sha256": "479ea13a94fae8bda6d59c2767db16180c0b70a8db2e32471e5c08889ae03e3a",
+    "predictions_sha256": "dbc7a8516dc3302bfa267d3200a31e9d25cf766e912de7cc350a53921e0f43d8",
+    "repeated_commands_preserved_artifacts": true
+  },
+  "connected_qwen_workflow": {
+    "status": "passed",
+    "model_revision": "89644892e4d85e24eaac8bacfd4f463576704203",
+    "device": "mps:0",
+    "fixture_edits": 1,
+    "fixture_approvals": 1,
+    "production_automatic_approvals": 0,
+    "rows_checked": 119,
+    "numeric_values_match_rlds_float32": true,
+    "source_frame_text_alignment": true,
+    "stable_resumes": true,
+    "session_cleanup": true,
+    "report_sha256": "795bb177b677898ef3d4d14d467389a352b3b4b49930cc7cc0ce6bb5da8a71c0"
+  },
+  "approval_gates": {
+    "missing_fixture_authorization_exit": 3,
+    "missing_sdk_credential_exit": 3,
+    "no_export_without_fresh_approval": true,
+    "text_only_edit_invalidates_prior_approval": true
+  },
+  "scripted_browser_checks": {
+    "native_with_loading_contract_and_cpu_throttle": true,
+    "real_droid_native": true,
+    "semantic_text_object_and_boundary_reload": true,
+    "synthetic_and_real_batch": true
+  },
+  "official_loader_checks": {
+    "native_synthetic_rows": 96,
+    "native_droid_rows": 119,
+    "semantic_droid_rows": 119,
+    "decoder": "pyav"
+  },
+  "mlx": {
+    "device": "Metal and MPS",
+    "cpu_fallback": false,
+    "tf32": false,
+    "small_official_model_only": true,
+    "exact_checkpoint_continuation": true,
+    "pretrained_policy_run": false
+  },
+  "messy_droid": {
+    "cases": 16,
+    "silent_corruption_cases": 0,
+    "deterministic_rerun": true
+  },
+  "limitations": {
+    "semantic_accuracy_measured": false,
+    "human_review_savings_measured": false,
+    "trustworthy_automatic_acceptance_established": false,
+    "task_descriptions_are_temporal_truth": false
+  },
+  "publication_policy": {
+    "run_github_actions": false,
+    "head_commit_must_contain": "[skip ci]"
+  }
+}
