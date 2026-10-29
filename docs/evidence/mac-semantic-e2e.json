@@ -51,7 +51,7 @@
     "mps_attention": "Native FP16 SDPA selected an end token on a prompt where CPU FP16 and MPS eager selected the same ordinary token. The loader now uses eager only for MPS.",
     "json_contract": "An explicit object example and final frame limits replace the ambiguous array-only instruction. Strict parsing is retained.",
     "train_annotation": "An explicit frozen train split is supported without changing evaluation split protections.",
-    "failure_exit": "Qwen and baseline preserve failed artifacts and exit2 when an episode fails.",
+    "failure_exit": "Qwen and baseline preserve failed artifacts and exit 2 when an episode fails.",
     "dataset_decoder": "Verifiers use the official available default decoder instead of forcing unavailable TorchCodec.",
     "training_handoff": "The training CLI explicitly conditions on exported semantic text and checks source, normalization, tokens, real updates and exact resume."
   },
@@ -128,7 +128,7 @@
   },
   "test_suites": {
     "core": {
-      "passed": 225,
+      "passed": 231,
       "skipped": 2
     },
     "semantic": {
@@ -141,12 +141,16 @@
       "passed": 5
     },
     "ruff": "passed",
-    "javascript_syntax": "passed"
+    "javascript_syntax": "passed",
+    "pr19_core": {
+      "passed": 226,
+      "skipped": 2
+    }
   },
   "data": {
     "dataset": "DROID public pilot",
     "episodes": 1,
-    "timing": "inferred nominal15Hz",
+    "timing": "inferred nominal 15 Hz",
     "training_fixture_reuses_public_pilot": true,
     "automated_native_corrections_and_approvals": true,
     "independent_reference_labels_created": false,
@@ -170,6 +174,6 @@
     "Prove It Works": "Ran the real pinned models and read saved raw outputs, loaded rows and action arrays.",
     "Fix Root Causes": "Compared CPU/MPS attention behavior and retained failed generation evidence.",
     "Sequence Work into Verifiable Units": "Verified model output, native export, official loading and training independently before publishing.",
-    "Explain the Number": "Counts cover one real119frame episode, all208expert tensors at resume and two actual optimizer steps; no speed or quality claim."
+    "Explain the Number": "Counts cover one real 119-frame episode, all 208 expert tensors at resume and two actual optimizer steps; no speed or quality claim."
   }
 }
