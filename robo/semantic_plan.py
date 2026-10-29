@@ -11,6 +11,37 @@ from robo.semantic_baseline import source_episode
 from robo.store import Store
 
 
+def build_plan(store, episodes, guidelines, *, dataset, camera, split):
+    """Inventory only the supplied episodes; labels and review history are never read."""
+    if not guidelines.is_file() or not 0 < guidelines.stat().st_size <= 64 * 1024:
+        raise ValueError("Supply a nonempty guidelines file of at most 64 KiB")
+    specs = [
+        episode_spec(
+            episode,
+            dataset=dataset,
+            dataset_episode_id=episode["source_id"],
+            camera_id=camera,
+            split=split,
+        )
+        for episode in episodes
+    ]
+    for spec in specs:
+        source_episode(store, spec)
+    return EvaluationPlan(
+        taxonomy_id="robot-coarse-v1",
+        normalized_actions=list(LABELS),
+        annotation_guidelines_sha256=file_hash(guidelines),
+        identity_audit={
+            "status": "unverified",
+            "reviewer": "automatic source inventory; not independently audited",
+            "evidence_sha256": digest(
+                specs[0].model_dump() if len(specs) == 1 else [s.model_dump() for s in specs]
+            ),
+        },
+        episodes=specs,
+    )
+
+
 def prepare(store, output, guidelines, *, dataset, camera, split, episode_id=None):
     episodes = store.episodes()
     selected = [e for e in episodes if e["id"] == episode_id] if episode_id else episodes
@@ -18,28 +49,7 @@ def prepare(store, output, guidelines, *, dataset, camera, split, episode_id=Non
         raise ValueError(
             "Select exactly one imported episode with --episode, or use a one-episode store"
         )
-    episode = selected[0]
-    if not guidelines.is_file() or not 0 < guidelines.stat().st_size <= 64 * 1024:
-        raise ValueError("Supply a nonempty guidelines file of at most 64 KiB")
-    spec = episode_spec(
-        episode,
-        dataset=dataset,
-        dataset_episode_id=episode["source_id"],
-        camera_id=camera,
-        split=split,
-    )
-    source_episode(store, spec)
-    plan = EvaluationPlan(
-        taxonomy_id="robot-coarse-v1",
-        normalized_actions=list(LABELS),
-        annotation_guidelines_sha256=file_hash(guidelines),
-        identity_audit={
-            "status": "unverified",
-            "reviewer": "automatic source inventory; not independently audited",
-            "evidence_sha256": digest(spec.model_dump()),
-        },
-        episodes=[spec],
-    )
+    plan = build_plan(store, selected, guidelines, dataset=dataset, camera=camera, split=split)
     output = Path(output)
     with pipeline_lock(store):
         if output.is_symlink():

@@ -10,8 +10,13 @@ from robo.pipeline import persist_report, pipeline_lock, read_report
 
 
 def sync_queue(sdk, store, report_path, instance):
-    instance = local_instance(instance)
     report = read_report(report_path, store)
+    return publish_queue(sdk, store, report, instance, persist=persist_report)
+
+
+def publish_queue(sdk, store, report, instance, *, persist):
+    """Publish prepared bundles; the caller owns its workflow report and routing policy."""
+    instance = local_instance(instance)
     directory = Path(report["report_path"]).parent
     state_path = directory / "native-queue.json"
     with pipeline_lock(store):
@@ -25,12 +30,19 @@ def sync_queue(sdk, store, report_path, instance):
         bridge = NativeReviewBridge(sdk, store, instance)
         for row in report["review_queue"]:
             episode_id = row["id"]
+            bundle = json.loads(Path(row["bundle"]).read_text())
+            bundle["task"]["data"].update(
+                review_priority=row["priority"], review_reason="; ".join(row["reasons"])
+            )
+            bundle["trusted_origin"]["mutable_task_fields"] = QUEUE_FIELDS
             existing = store.native_binding(episode_id)
             if existing:
                 if existing["instance"] != instance:
                     raise ValueError("Episode is already bound to another Label Studio instance")
                 task_id = existing["binding"]["task_id"]
                 project_id = existing["binding"]["project_id"]
+                if bundle["trusted_origin"].get("semantic_prediction"):
+                    bridge.register(bundle, project_id, task_id)
                 # Detect deleted or inaccessible tasks before reporting a working review link.
                 task = sdk.tasks.get(str(task_id))
                 if (
@@ -47,7 +59,6 @@ def sync_queue(sdk, store, report_path, instance):
                     if data != task.data:
                         sdk.tasks.update(str(task_id), data=data)
             else:
-                bundle = json.loads(Path(row["bundle"]).read_text())
                 signature = config_hash(bundle["label_config"])[:16]
                 title = f"Review {report['batch_id']}-{signature}"
                 project_id = state["projects"].get(signature)
@@ -170,5 +181,5 @@ def sync_queue(sdk, store, report_path, instance):
                     task["url"] = f"{instance}/projects/{project_id}/data?tab={view.id}"
         atomic_json(state_path, state)
         report["native_tasks"] = state["tasks"]
-        persist_report(report)
+        persist(report)
     return report
