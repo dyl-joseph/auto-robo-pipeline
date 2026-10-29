@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "exit_status": 0,
+  "driver_sha256": "870864f03c0311b3af270830c29e7bf78adfe4e4b1accb74eefbe39024d7d3ea",
+  "provider_requested": "baseline",
+  "producer": "robot-state-baseline-v1",
+  "model_execution": {
+    "reason": "Explicit robot-state baseline; no model inference",
+    "status": "skipped"
+  },
+  "pretrained_qwen_run": false,
+  "fixture_edits": 1,
+  "fixture_approvals": 1,
+  "production_automatic_approvals": 0,
+  "rows_checked": 119,
+  "episodes": 1,
+  "segments": 9,
+  "split": "train",
+  "native_task_count": 1,
+  "native_video_response": 200,
+  "saved_correction_refreshed_automatically": true,
+  "repeated_run_keeps_export_and_predictions": true,
+  "official_lerobot_and_dataloader": true,
+  "model_inference_performed_by_loader": false,
+  "source_frame_text_alignment": true,
+  "numeric_values_match_rlds_float32": true,
+  "video_backend": "torchcodec",
+  "source_timing": "inferred_nominal_15_hz",
+  "source_license": "CC-BY-4.0",
+  "source_attribution": "DROID, Khazatsky et al. (2024)",
+  "session_cleanup": true,
+  "evaluation_status": "blocked",
+  "semantic_accuracy_measured": false,
+  "independent_reference_labels_created": false,
+  "human_efficiency_measured": false,
+  "browser_interaction_tested_here": false,
+  "prediction_sha256": "2146b200a1db57a495f364aac63956916ce648dd381267a366a3c6aeefe53610",
+  "accepted_version": "8c2c7f747234b0a25b52c195",
+  "training_version": "fe78768afd757b4d188591c4",
+  "evidence_kind": "real_droid_baseline_workflow_with_automated_fixture_review",
+  "stages": {
+    "correction": "passed",
+    "environment": "passed",
+    "export": "passed",
+    "fixture_approval": "passed",
+    "official_loader": "passed",
+    "workflow": "passed"
+  },
+  "command": "uv run --locked python -m scripts.semantic_workflow_acceptance --provider baseline --source data/local/droid-sample --allow-partial --split train --approve-fixture --output artifacts/workflow-acceptance-final-train",
+  "local_report": {
+    "path": "artifacts/workflow-acceptance-final-train/report.json",
+    "sha256": "6292c5abb50333778d6b47a58b627793879ff0cf0216f9dbcab5fa2436ec95d2"
+  },
+  "development_harness": {
+    "status": "passed",
+    "rows_checked": 119,
+    "split": "development",
+    "report_path": "artifacts/semantic-pipeline.json",
+    "report_sha256": "4a5254f24786d80c6390fb4a892b91f91cbe7125582b9dcdd45ae8bec4e75f9f"
+  },
+  "missing_model_control": {
+    "status": "unavailable",
+    "exit_status": 3,
+    "model_execution": {
+      "reason": "Inference was not reached",
+      "status": "skipped"
+    },
+    "fixture_edits": 0,
+    "fixture_approvals": 0,
+    "report_sha256": "cbed7ac2e7b7f872aac8fd133e46a62a4933f81e35529754fc3b6983a1ad7cad"
+  },
+  "source_shard": {
+    "source_uri": "gs://gresearch/robotics/droid_100/1.0.0/r2d2_faceblur-train.tfrecord-00009-of-00031",
+    "bytes": 9541347,
+    "sha256": "645d500e23e7359c21121b12fe1a1395157ba421b1b326eee7df829eb608a03d"
+  }
+}

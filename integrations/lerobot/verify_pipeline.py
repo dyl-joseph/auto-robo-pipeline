@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args()
     report = json.loads((args.workflow / "report.json").read_text())
+    config = json.loads((args.workflow / "configuration.json").read_text())["configuration"]
     assert report["status"] == "complete" and report["exit_status"] == 0
     accepted, training = (Path(report["export"][key]) for key in ("accepted", "training"))
     records = validate_export(accepted)
@@ -26,14 +27,14 @@ def main():
     record = records[0]
     assert record["episode"]["data_kind"] == "real"
     assert record["episode"]["video_timing"] == "inferred_nominal_fps"
-    assert record["split"] == "development"
+    assert record["split"] == config["split"]
     raw_paths = list((args.workflow / "intake/episodes").glob("*/rlds-episode.json"))
     assert len(raw_paths) == 1
     raw = json.loads(raw_paths[0].read_text())
     review = record["annotation"]["native"]["semantic_review"]
     assert review["complete"] and review["kind"] == "model_assisted_review"
     original = json.loads((args.workflow / "predictions.json").read_text())
-    assert original["producer"] == "robot-state-baseline-v1"
+    assert original["producer"] == report["provider"]["producer"]
     assert (
         original["episodes"][0]["segments"][0]["subtask_text"]
         != review["segments"][0]["subtask_text"]
@@ -78,7 +79,8 @@ def main():
     atomic_json(
         args.evidence,
         {
-            "evidence_kind": "real_droid_baseline_orchestration_and_automated_api_review",
+            "evidence_kind": "real_droid_workflow_and_automated_api_review",
+            "producer": original["producer"],
             "rows_checked": len(reader),
             "episodes": 1,
             "segments": len(review["segments"]),
@@ -91,7 +93,7 @@ def main():
             "official_lerobot_and_dataloader": True,
             "video_backend": reader._video_backend,
             "source_timing": "inferred_nominal_15_hz",
-            "pretrained_qwen_run": False,
+            "model_inference_performed_by_loader": False,
             "semantic_accuracy_measured": False,
             "human_efficiency_measured": False,
             "browser_interaction_tested_here": False,
