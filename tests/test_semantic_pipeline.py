@@ -10,9 +10,11 @@ from label_studio_sdk.types.lse_task import LseTask
 
 from robo.core import atomic_json, digest, file_hash
 from robo.export import validate_export
+from robo.ingest import import_episode
 from robo.native_review import NativeReviewBridge
 from robo.semantic import EvaluationPlan, Predictions
 from robo.semantic_pipeline import Configuration, Workflow, exit_status
+from robo.semantic_plan import build_plan
 from robo.semantic_runtime import Runtime, StageFailure
 
 
@@ -52,7 +54,7 @@ class FixtureRuntime(Runtime):
 
     def predict(self, config, plan_path, store, output):
         plan = EvaluationPlan.model_validate_json(plan_path.read_bytes())
-        spec = plan.episodes[0]
+        spec = next(s for s in plan.episodes if s.split == config.split)
         self.calls.append(spec.episode_id)
         if self.crash:
             raise StageFailure("Controlled transport failure")
@@ -282,6 +284,7 @@ def test_resumes_prediction_publication_review_and_versioned_export(workflow, sp
 def test_partial_failure_deduplicates_and_preserves_failed_model_output(workflow):
     engine, runtime, sdk, body = workflow
     runtime.bodies = [body, body, {**body, "source_id": "bad"}]
+    engine.config = engine.config.model_copy(update={"max_episodes": 3})
     runtime.fail = {"bad"}
     report = engine.run()
     assert report["metrics"]["imported_episodes"] == 2
@@ -309,6 +312,7 @@ def test_partial_failure_deduplicates_and_preserves_failed_model_output(workflow
 def test_excluded_episodes_are_resolved_decisions(workflow, include_accepted):
     engine, runtime, sdk, body = workflow
     runtime.bodies = [body, {**body, "source_id": "second"}] if include_accepted else [body]
+    engine.config = engine.config.model_copy(update={"max_episodes": len(runtime.bodies)})
     engine.run()
     for task_id in sdk.task_rows:
         sdk.save_annotation(task_id)
@@ -379,6 +383,184 @@ def test_multiple_annotations_require_explicit_selection(workflow):
     assert report["items"][0]["state"] == "annotation_selection_required"
     assert engine.store.history(report["items"][0]["episode_id"]) == []
     assert exit_status(report) == 3
+
+
+def audited_fixture(engine, runtime):
+    runtime.intake(engine.config, engine.root / "intake")
+    episodes = [
+        import_episode(path, engine.store)
+        for path in sorted((engine.root / "intake/episodes").glob("*/source.json"))
+    ]
+    plan = build_plan(
+        engine.store,
+        episodes,
+        engine.config.guidelines,
+        dataset="DROID",
+        camera=engine.config.camera,
+        split=engine.config.split,
+    ).model_dump()
+    plan["identity_audit"] = {
+        "status": "human_verified",
+        "reviewer": "Generated audit declaration for regression",
+        "evidence_sha256": digest("generated identity audit fixture"),
+    }
+    return plan
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("camera_id", "wrist_image_left"),
+        ("dataset_episode_id", "unverified-episode-alias"),
+        ("dataset", "different-dataset"),
+    ],
+)
+def test_audit_cannot_relabel_imported_identity(workflow, field, value):
+    engine, runtime, sdk, _ = workflow
+    audit = audited_fixture(engine, runtime)
+    audit["episodes"][0][field] = value
+    path = engine.root / "supplied-audit.json"
+    atomic_json(path, audit)
+    engine.config = engine.config.model_copy(update={"audited_plan": path})
+    report = engine.run()
+    assert report["status"] == "blocked" and exit_status(report) == 2
+    assert report["errors"][0]["stage"] == "plan"
+    assert "imported episode identity" in report["errors"][0]["message"]
+    assert runtime.calls == [] and sdk.import_calls == 0
+    assert not (engine.root / "plan.json").exists()
+
+
+def test_audit_can_add_verification_and_near_duplicate_groups(workflow):
+    engine, runtime, _, _ = workflow
+    audit = audited_fixture(engine, runtime)
+    audit["episodes"][0]["near_duplicate_groups"] = ["generated-duplicate-group"]
+    path = engine.root / "supplied-audit.json"
+    atomic_json(path, audit)
+    engine.config = engine.config.model_copy(update={"audited_plan": path})
+    report = engine.run()
+    assert report["status"] == "awaiting_review"
+    assert json.loads((engine.root / "plan.json").read_text()) == audit
+
+
+def catalog_fixture(engine, runtime):
+    audit = audited_fixture(engine, runtime)
+    selected = audit["episodes"][0]
+    for split in ("train", "test"):
+        audit["episodes"].append(
+            {
+                **selected,
+                "episode_id": split + "-fixture",
+                "dataset_episode_id": split + "-source",
+                "session_id": split + "-session",
+                "split": split,
+                "source_sha256": digest([split, "source"]),
+                "media_sha256": digest([split, "media"]),
+            }
+        )
+    audit["episodes"].reverse()
+    return audit
+
+
+@pytest.mark.parametrize("count", [1, 2])
+def test_full_audited_catalog_preserves_other_splits_without_importing_them(
+    workflow, monkeypatch, count
+):
+    engine, runtime, sdk, body = workflow
+    if count == 2:
+        runtime.bodies.append({**body, "source_id": "second-development-episode"})
+        engine.config = engine.config.model_copy(update={"max_episodes": count})
+    audit = catalog_fixture(engine, runtime)
+    path = engine.root / "supplied-audit.json"
+    reference_path = engine.root / "fixture-references.json"
+    atomic_json(path, audit)
+    engine.config = engine.config.model_copy(
+        update={"audited_plan": path, "references": reference_path}
+    )
+    predict = runtime.predict
+
+    def declared_training(*args):
+        predict(*args)
+        output = args[-1]
+        prediction_path = output / "predictions.json"
+        predictions = json.loads(prediction_path.read_text())
+        predictions["training_episode_ids"] = ["train-fixture"]
+        predictions["tuning_episode_ids"] = ["train-fixture"]
+        atomic_json(prediction_path, predictions)
+        manifest = json.loads((output / "run.json").read_text())
+        manifest["files"]["predictions.json"] = file_hash(prediction_path)
+        atomic_json(output / "run.json", manifest)
+
+    monkeypatch.setattr(runtime, "predict", declared_training)
+    report = engine.run()
+    assert report["status"] == "awaiting_review", report
+    assert len(runtime.calls) == sdk.import_calls == count
+    selected_ids = [s["episode_id"] for s in audit["episodes"] if s["split"] == "development"]
+    assert runtime.calls == selected_ids
+    assert json.loads((engine.root / "plan.json").read_text()) == audit
+    for selected_id in selected_ids:
+        job_plan = json.loads((engine.root / f"jobs/{selected_id}/plan.json").read_text())
+        assert job_plan == {
+            **audit,
+            "episodes": [
+                s
+                for s in audit["episodes"]
+                if s["split"] != "development" or s["episode_id"] == selected_id
+            ],
+        }
+    predictions = Predictions.model_validate_json((engine.root / "predictions.json").read_bytes())
+    plan = EvaluationPlan.model_validate(audit)
+    assert predictions.plan_sha256 == plan.plan_sha256
+    assert predictions.training_episode_ids == predictions.tuning_episode_ids == ["train-fixture"]
+    assert [p.episode_id for p in predictions.episodes] == selected_ids
+    assert {e["id"] for e in engine.store.episodes()} == set(selected_ids)
+    assert len(report["items"]) == len(report["review_queue"]) == count
+    reference = reference_fixture(plan, selected_ids[0])
+    reference["episodes"] = [reference_fixture(plan, key)["episodes"][0] for key in selected_ids]
+    atomic_json(reference_path, reference)
+    repeated = engine.run()
+    assert repeated["status"] == "awaiting_review" and repeated["evaluation"]["status"] == "scored"
+    scored = json.loads(Path(repeated["evaluation"]["path"]).read_text())
+    assert scored["plan_sha256"] == plan.plan_sha256 and scored["episode_count"] == count
+    assert scored["predictions_sha256"] == digest(predictions.model_dump())
+    assert len(runtime.calls) == sdk.import_calls == count
+
+
+@pytest.mark.parametrize("change", ["missing", "undeclared", "extra", "wrong_split", "leakage"])
+def test_audited_catalog_rejects_population_mismatch_and_cross_split_leakage(workflow, change):
+    engine, runtime, sdk, _ = workflow
+    audit = catalog_fixture(engine, runtime)
+    selected = next(s for s in audit["episodes"] if s["split"] == "development")
+    if change == "missing":
+        audit["episodes"].remove(selected)
+    elif change == "undeclared":
+        selected["episode_id"] = "not-imported"
+    elif change == "extra":
+        extra = deepcopy(next(s for s in audit["episodes"] if s["split"] == "test"))
+        extra.update(
+            episode_id="extra",
+            dataset_episode_id="extra-source",
+            split="development",
+            session_id="extra-session",
+            source_sha256=digest("extra-source"),
+            media_sha256=digest("extra-media"),
+        )
+        audit["episodes"].append(extra)
+    elif change == "wrong_split":
+        selected["split"] = "test"
+    else:
+        next(s for s in audit["episodes"] if s["split"] == "train")["media_sha256"] = selected[
+            "media_sha256"
+        ]
+    path = engine.root / "supplied-audit.json"
+    atomic_json(path, audit)
+    engine.config = engine.config.model_copy(update={"audited_plan": path})
+    report = engine.run()
+    assert report["status"] == "blocked" and exit_status(report) == 2
+    assert report["errors"][0]["stage"] == "plan"
+    assert ("split leakage" if change == "leakage" else "population") in report["errors"][0][
+        "message"
+    ]
+    assert runtime.calls == [] and sdk.import_calls == 0
 
 
 def test_failed_intake_revalidation_blocks_even_previously_accepted_export(workflow, monkeypatch):
@@ -454,15 +636,9 @@ def test_aggregate_keeps_provider_tuning_declarations(workflow, monkeypatch):
     assert predictions.tuning_episode_ids == [report["items"][0]["episode_id"]]
 
 
-def test_evaluation_uses_original_predictions_and_requires_real_identity_audit(workflow):
-    engine, _, sdk, _ = workflow
-    reference_path = engine.root / "fixture-references.json"
-    engine.config = engine.config.model_copy(update={"references": reference_path})
-    first = engine.run()
-    key = first["items"][0]["episode_id"]
-    plan = EvaluationPlan.model_validate_json((engine.root / "plan.json").read_bytes())
+def reference_fixture(plan, key):
     reference_hash = digest("separately constructed release fixture")
-    reference = {
+    return {
         "plan_sha256": plan.plan_sha256,
         "evidence_kind": "synthetic_fixture",
         "episodes": [
@@ -498,6 +674,16 @@ def test_evaluation_uses_original_predictions_and_requires_real_identity_audit(w
             }
         ],
     }
+
+
+def test_evaluation_uses_original_predictions_and_requires_real_identity_audit(workflow):
+    engine, _, sdk, _ = workflow
+    reference_path = engine.root / "fixture-references.json"
+    engine.config = engine.config.model_copy(update={"references": reference_path})
+    first = engine.run()
+    key = first["items"][0]["episode_id"]
+    plan = EvaluationPlan.model_validate_json((engine.root / "plan.json").read_bytes())
+    reference = reference_fixture(plan, key)
     atomic_json(reference_path, reference)
     scored = engine.run()["evaluation"]
     assert scored["status"] == "scored"

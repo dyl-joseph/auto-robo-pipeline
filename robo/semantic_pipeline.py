@@ -206,20 +206,32 @@ class Workflow:
             split=config.split,
         )
         if config.audited_plan:
+            imported = {
+                spec.episode_id: spec.model_dump(exclude={"near_duplicate_groups"})
+                for spec in plan.episodes
+            }
             plan = EvaluationPlan.model_validate_json(config.audited_plan.read_bytes())
+            selected = [spec for spec in plan.episodes if spec.split == config.split]
+            selected_ids = {spec.episode_id for spec in selected}
             if (
-                {s.episode_id for s in plan.episodes} != set(episodes)
-                or any(s.split != config.split for s in plan.episodes)
+                selected_ids != set(episodes)
                 or plan.annotation_guidelines_sha256 != frozen["guidelines_sha256"]
             ):
-                raise ValueError("Audited plan must match this population, split and guidelines")
-            for spec in plan.episodes:
+                raise ValueError(
+                    "Audited selected-split population and guidelines must match intake"
+                )
+            for spec in selected:
+                if spec.model_dump(exclude={"near_duplicate_groups"}) != imported[spec.episode_id]:
+                    raise ValueError(
+                        "Audited plan cannot change imported episode identity, camera or clock"
+                    )
                 source_episode(self.store, spec)
+        selected = [spec for spec in plan.episodes if spec.split == config.split]
         plan_path = self.owned("plan.json")
         freeze(plan_path, plan.model_dump())
         rows, receipts = [], {}
         report["stage"] = "prediction"
-        for spec in plan.episodes:
+        for spec in selected:
             source_episode(self.store, spec)
             row, receipt = self.prediction(plan, spec, identity)
             rows.append(row)
@@ -249,7 +261,7 @@ class Workflow:
         report["prediction_artifact"] = str(prediction_path)
         report["prediction_sha256"] = file_hash(prediction_path)
         report["stage"] = "review_preparation"
-        for spec, row in zip(plan.episodes, rows, strict=True):
+        for spec, row in zip(selected, rows, strict=True):
             reasons = review_reasons(plan, spec, row)
             output = self.owned(f"review/{spec.episode_id}")
             prepare(self.store, plan_path, prediction_path, spec.episode_id, output)
@@ -349,7 +361,15 @@ class Workflow:
 
     def prediction(self, plan, spec, identity):
         plan_path = self.owned(f"jobs/{spec.episode_id}/plan.json")
-        job_plan = plan.model_copy(update={"episodes": [spec]})
+        job_plan = plan.model_copy(
+            update={
+                "episodes": [
+                    entry
+                    for entry in plan.episodes
+                    if entry.split != spec.split or entry.episode_id == spec.episode_id
+                ]
+            }
+        )
         freeze(plan_path, job_plan.model_dump())
         receipt_path = self.owned(f"jobs/{spec.episode_id}/receipt.json")
         provider = self.owned(f"jobs/{spec.episode_id}/provider")
