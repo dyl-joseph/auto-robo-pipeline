@@ -4,6 +4,8 @@ The adapter uses the official [Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen
 
 The pinned release is `89644892e4d85e24eaac8bacfd4f463576704203`, published under Apache-2.0 without an access gate. Its weight file is 4,255,140,312 bytes. The [asset manifest](../integrations/semantic/assets.json) records the publisher's file sizes and hashes. Only 18,342 bytes of metadata/configuration were saved during development; no pretrained weights were downloaded.
 
+For a first run without an imported store or plan, follow the [one-episode Mac quickstart](mac-semantic-quickstart.md).
+
 ## Setup and asset check
 
 ```bash

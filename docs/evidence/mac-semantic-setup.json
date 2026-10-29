@@ -1,0 +1,21 @@
+{
+  "evidence_kind": "linux_check_of_mac_setup_commands",
+  "source": "existing official DROID pilot shard; no additional dataset download",
+  "source_frames": 119,
+  "imported_episodes": 1,
+  "plan_split": "development",
+  "identity_audit": "unverified",
+  "reference_labels_created": 0,
+  "plan_sha256": "c1a7d05df1f165a3d3da7f44e56b7cba4d468283a8968d7f931942e2aaac9648",
+  "baseline_segments": 9,
+  "failed_predictions": 0,
+  "native_semantic_bundle_prepared": true,
+  "core_tests_passed": 210,
+  "missing_qwen_assets_preflight_rejected": true,
+  "pretrained_weights_downloaded": false,
+  "full_pretrained_qwen_run": false,
+  "mps_execution_verified": false,
+  "mac_timing_memory_measured": false,
+  "semantic_accuracy_measured": false,
+  "attribution": "DROID, Khazatsky et al. (2024), CC-BY-4.0"
+}

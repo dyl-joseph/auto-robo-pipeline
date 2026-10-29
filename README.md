@@ -59,6 +59,8 @@ The importer keeps original video and numeric values. Review uses a separate con
 
 Automation prepares and prioritizes work. Motion suggestions and uncertainty scores are heuristic; semantic labels still require review.
 
+The [Mac quickstart](docs/mac-semantic-quickstart.md) starts from a local one-episode import, creates a label-free plan, and lists the pinned Qwen download, MPS inference and native review/export commands.
+
 ## Evaluate autonomous labels
 
 The comparison must score predictions before a person corrects them. Use independent reference labels with a fixed taxonomy and boundary rules, and keep related sessions and near-duplicate episodes in the same split. Hold test labels out of training, prompt changes and threshold selection.
