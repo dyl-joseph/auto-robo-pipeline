@@ -81,8 +81,8 @@ Run the workflow command once more. It selects fresh accepted revisions, validat
 
 | Exit | Meaning |
 | --- | --- |
-| `0` | Every selected episode is accepted and its training-format export validated. This is not an accuracy score or a policy-training result. |
-| `3` | Waiting for Label Studio access, saved review, annotation selection or explicit approval. Any completed subset is listed separately. |
+| `0` | Every review decision is resolved (accepted or excluded), and the accepted subset has a validated training-format export. This is not an accuracy score or a policy-training result. |
+| `3` | Waiting for Label Studio access, saved review, annotation selection or explicit approval; also used when all episodes were explicitly excluded and there is nothing to export. The report names the state and any exported subset. |
 | `2` | A stage failed or at least one prediction failed. A valid subset may still export; the failed episodes remain in the report. |
 
 A run without an SDK credential can prepare predictions and bundles, but reports `awaiting_label_studio`; it does not claim tasks were published. All-failed inference exits `2`. Empty failed tasks retain their original error and cannot be accepted as complete semantic annotations.

@@ -327,13 +327,21 @@ class Workflow:
                 "episodes": len(selection),
             }
         states = {item["state"] for item in report["items"]}
+        report["metrics"].update(
+            accepted_episodes=sum(item["state"] == "accepted" for item in report["items"]),
+            excluded_episodes=sum(item["state"] == "excluded" for item in report["items"]),
+        )
         report["status"] = (
             "complete"
-            if states == {"accepted"} and report["export"]["status"] == "validated"
+            if states <= {"accepted", "excluded"} and report["export"]["status"] == "validated"
+            else "no_accepted_episodes"
+            if states == {"excluded"}
             else "awaiting_approval"
             if "awaiting_approval" in states
             else "awaiting_review"
         )
+        if report["status"] == "no_accepted_episodes":
+            report["export"]["reason"] = "All episodes were explicitly excluded"
         if report["errors"] or report["metrics"]["failed_predictions"]:
             report["status"] = "partial_failure" if selection else "failed"
         self.persist(report)

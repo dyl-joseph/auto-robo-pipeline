@@ -305,6 +305,35 @@ def test_partial_failure_deduplicates_and_preserves_failed_model_output(workflow
     assert len(runtime.calls) == sdk.import_calls == 2
 
 
+@pytest.mark.parametrize("include_accepted", [False, True])
+def test_excluded_episodes_are_resolved_decisions(workflow, include_accepted):
+    engine, runtime, sdk, body = workflow
+    runtime.bodies = [body, {**body, "source_id": "second"}] if include_accepted else [body]
+    engine.run()
+    for task_id in sdk.task_rows:
+        sdk.save_annotation(task_id)
+    draft = engine.run()
+    bridge = NativeReviewBridge(sdk, engine.store, engine.config.instance)
+    for index, item in enumerate(draft["items"]):
+        bridge.decide(
+            item["episode_id"],
+            item["revision"],
+            "reject" if index == 0 else "accept",
+            "fixture-approver",
+            "Explicit automated test decision",
+        )
+    report = engine.run()
+    assert report["metrics"]["excluded_episodes"] == 1
+    assert report["metrics"]["accepted_episodes"] == int(include_accepted)
+    if include_accepted:
+        assert report["status"] == "complete" and exit_status(report) == 0
+        assert report["export"]["episodes"] == 1
+    else:
+        assert report["status"] == "no_accepted_episodes" and exit_status(report) == 3
+        assert report["export"]["status"] == "blocked"
+        assert report["export"]["reason"] == "All episodes were explicitly excluded"
+
+
 @pytest.mark.parametrize("transport", [False, True])
 def test_all_failed_is_never_success_and_never_silently_retried(workflow, transport):
     engine, runtime, sdk, body = workflow
