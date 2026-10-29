@@ -146,7 +146,7 @@ class Workflow:
             "audited_plan_sha256": file_hash(config.audited_plan) if config.audited_plan else None,
         }
         freeze(self.owned("configuration.json"), frozen)
-        report["batch_id"] = digest(frozen)[:24]
+        report["batch_id"] = digest({"configuration": frozen, "workspace": str(self.root)})[:24]
         report["provider"] = identity
         report["stage"] = "intake"
         intake_path = self.owned("intake")

@@ -406,6 +406,20 @@ def test_missing_sdk_does_not_claim_tasks_were_published(workflow):
     assert "native_tasks" not in report
 
 
+def test_new_workspace_does_not_reuse_another_runs_native_annotations(workflow):
+    engine, runtime, sdk, _ = workflow
+    first = engine.run()
+    sdk.save_annotation(1)
+    second = Workflow(
+        engine.root.parent / "separate-run", engine.config, runtime=runtime, sdk=sdk
+    ).run()
+    assert first["batch_id"] != second["batch_id"]
+    assert second["status"] == "awaiting_review"
+    assert len(sdk.project_rows) == len(sdk.task_rows) == sdk.import_calls == 2
+    key = first["items"][0]["episode_id"]
+    assert first["native_tasks"][key]["task_id"] != second["native_tasks"][key]["task_id"]
+
+
 def test_runtime_qwen_is_selected_explicitly_without_baseline_fallback(workflow, monkeypatch):
     engine, _, _, _ = workflow
     config = engine.config.model_copy(

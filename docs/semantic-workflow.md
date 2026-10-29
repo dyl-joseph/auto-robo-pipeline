@@ -89,7 +89,7 @@ A run without an SDK credential can prepare predictions and bundles, but reports
 
 ## What resume preserves
 
-The workspace pins configuration, guideline content, provider source/lockfile hashes, per-episode plans and provider manifests. Intake revalidates its original source and converted files before downstream work. Interrupted native imports reconcile existing projects/tasks instead of creating duplicates. The workflow also retains provider training/tuning declarations when combining episode results.
+The workspace pins configuration, guideline content, provider source/lockfile hashes, per-episode plans and provider manifests. Intake revalidates its original source and converted files before downstream work. Interrupted native imports reconcile existing projects/tasks instead of creating duplicates. Each workspace has its own project identity, so a new run cannot inherit another run's native annotations. The workflow also retains provider training/tuning declarations when combining episode results.
 
 Changed source bytes, prediction files, native predictions or settings block reuse. A provider failure is a saved result, not an invitation to retry silently. After changing a model, prompt or failed input, use a new workspace and keep the failed run for comparison. This first version loads the provider once per episode; it does not keep Qwen resident across a batch. Intake retains its existing bounds of 4,500 steps per episode, 128 MiB per shard and 512 MiB selected shards.
 
