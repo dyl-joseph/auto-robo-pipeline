@@ -74,6 +74,20 @@ Text follows the selected source frame, so deliberately repeated video frames re
 
 These are annotation features available to downstream code. Adding them does not change a policy's conditioning or establish that an existing checkpoint consumes them. DROID's absolute joint/gripper action schema and the existing [PI compatibility checks](mlx.md) still apply.
 
+## Verify correction and export through the API
+
+To check saved native annotations without a browser, run the verifier in the root Label Studio environment. Supply successful model predictions and their original frozen plan. The verifier imports the source into a disposable store, uses the real Label Studio backend and official SDK, and saves accepted exports under a fresh directory.
+
+```bash
+uv run --locked python -m scripts.semantic_api_verify \
+  --source PATH_TO_SOURCE_JSON --plan PATH_TO_PLAN_JSON \
+  --predictions PATH_TO_MODEL_PREDICTIONS_JSON --output artifacts/semantic-api-check
+```
+
+The check covers text edits, saved object clearing, incomplete-coverage refusal, explicit approval, stale-export refusal and fresh approval after a later edit. It also edits adjacent boundaries when the supplied prediction has an editable pair. Single-segment predictions remain valid inputs. `report.json` identifies the input hashes, original split, source store and accepted paths for LeRobot conversion. The source predictions remain unchanged; no baseline is substituted. Use `--synthetic-fixture` only for predictions with explicit generated-fixture provenance.
+
+The corrections and approvals are automated integration inputs. API reloads verify persisted backend state; this command does not verify the rendered editor or human review. For policy training, supply a plan frozen as `train` before generation and convert the resulting accepted export with `--split train`.
+
 ## Reproduce the integration check
 
 After the [DROID demo setup](demo.md) and [browser setup](development.md):
@@ -89,6 +103,6 @@ uv run --locked --project integrations/lerobot python -m integrations.lerobot.ve
 
 Choose a fresh fixture path for each browser run. The test produces nine baseline candidates, edits text/object fields and two adjacent boundaries in the real application, and saves and reloads. It then clears one saved object description, saves and reloads again, explicitly approves through the SDK bridge, and exports. The neighboring region keeps its object text. A later text-only edit must block a new export. The official LeRobot writer, loader and DataLoader then check all 119 rows, including corrected strings, object presence, source-frame mapping, image decoding and exact float32 state/action values from RLDS. Original prediction hashes must match throughout.
 
-[Recorded evidence](evidence/semantic-review.json) describes this one-episode check. It measures neither semantic accuracy nor human effort. Full pretrained Qwen labeling and comparison against independently verified temporal references remain separate gates.
+[Recorded browser evidence](evidence/semantic-review.json) describes this one-episode check. The [Mac API check](evidence/mac-semantic-e2e.json) additionally uses real full-checkpoint Qwen predictions through approval, export and pretrained policy updates. Neither check measures independent semantic accuracy or human effort.
 
 The browser test also holds video requests during reload, verifies that media is still unloaded, then releases them and waits for playback readiness before selecting the saved region. Frame controls must expose the full source length before use. This covers a CI failure where the native end-frame field initially had a maximum of 1; the pinned editor clamps inputs on click/blur. Stored API ranges are checked before and after reload as well as in the editor. CI runs this path at 6× CPU throttling.

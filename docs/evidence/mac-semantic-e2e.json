@@ -1,0 +1,175 @@
+{
+  "status": "passed",
+  "verified_at_utc": "2026-10-29T02:53:03.676537+00:00",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "hardware": {
+    "model": "Mac17,8",
+    "unified_memory_bytes": 51539607552
+  },
+  "verification_source": {
+    "base_commit": "c905a6521c154baceb5e3df4d30b0b700311bd01",
+    "working_tree_changes_tested": true,
+    "source_sha256": {
+      "integrations/semantic/assets.py": "700663c00a38f6502285b18715e6e3321a231230b33e1da94f53e69b7751655d",
+      "integrations/semantic/qwen.py": "7cb9bd04013326243008e60d0c997cf0939bbbd2a15ed9a7ef60c12c649601ef",
+      "scripts/semantic_api_verify.py": "4037722cc81dab1617dce54fab5890a83eee6b616a5a571d124609e6195732c9",
+      "robo/semantic.py": "c2b74b9ed765334b8a682ca5868025b414c8e9f60fd15c5350d99d7e9e0e79fb",
+      "robo/semantic_review.py": "e87e505e08deca7f2834041789594b1be11c864acf49b4f7bfa4e77de7095664",
+      "robo/native_review.py": "8b98ca239b286a7dd521a4d0a7bc87c352a92d07d51f511527852982727fc424",
+      "robo/labelstudio.py": "80a06abce79fed6f2a52f401ef19dc3c8ed5011a3ce0dd3ecb9c8d66612f7f2b",
+      "robo/export.py": "5a9abbde349f8bc1b7062eb1145e86fd7f7e18137394a09b5f81c26aef974ad7",
+      "robo/lerobot_export.py": "b0dd54277c203ca3d1934a7384490f0ab40474fb649d237b8fb5d25f85b7bd71",
+      "robo/lerobot_plan.py": "b03cc9f39bdd3f9ec3ce59923c9bd91931bdd60afdd8c6a9e29edab523d94d65",
+      "integrations/mlx_pi/train_export.py": "8e01428fef410d2e69711ba4e6b0bd6ca025cd0780e4bfe9a04c5668e51fce33",
+      "integrations/mlx_pi/training.py": "6d503bf614d082b19d555541ebc3c54e48a7e38b8740f765c28493d513d2ed51",
+      "integrations/mlx_pi/bridge.py": "8a547c7cfc57e64692717864929732247245f853f7b7f483eb6fdd42292fe2e6",
+      "integrations/mlx_pi/model.py": "97a190550aa26f4860423d50805aa6cbf8359c8e54a12d85703492f47a2e32b6",
+      "integrations/mlx_pi/infer_synthetic.py": "4d1ce3ef5f91f5fba9a22cfc17e2585d8c43bf35949228039248fd009c081802",
+      "integrations/mlx_pi/pyproject.toml": "ed43cb7ca41afe3b721c7aaaf9eda2799eb7ba1a19d7c47de78dec30878ac427",
+      "integrations/mlx_pi/uv.lock": "2da72088485e86569732d98a22ee8847ffd5f5f07c581c4688ee3e8d00d2245f"
+    },
+    "publication_gate": "Both final PR branch heads must contain these exact runtime files."
+  },
+  "qwen": {
+    "model_id": "Qwen/Qwen3-VL-2B-Instruct",
+    "revision": "89644892e4d85e24eaac8bacfd4f463576704203",
+    "device": "mps:0",
+    "dtype": "torch.float16",
+    "attention_implementation": "eager",
+    "supplied_images": 16,
+    "source_frames": 119,
+    "input_tokens": 1655,
+    "output_tokens": 126,
+    "segments": 2,
+    "failed_predictions": 0,
+    "split": "train",
+    "purpose": "training_annotations",
+    "weights_sha256": "7de1838c87a5349b016c26a1c3f7d2bc400a3d485f95ef39a7059ffd734977a0",
+    "prediction_sha256": "f9bc987212f46c34f34b67786cfb23d19f9f216fa34d65c1bc4bb77b048d0bb9"
+  },
+  "fixes": {
+    "mps_attention": "Native FP16 SDPA selected an end token on a prompt where CPU FP16 and MPS eager selected the same ordinary token. The loader now uses eager only for MPS.",
+    "json_contract": "An explicit object example and final frame limits replace the ambiguous array-only instruction. Strict parsing is retained.",
+    "train_annotation": "An explicit frozen train split is supported without changing evaluation split protections.",
+    "failure_exit": "Qwen and baseline preserve failed artifacts and exit2 when an episode fails.",
+    "dataset_decoder": "Verifiers use the official available default decoder instead of forcing unavailable TorchCodec.",
+    "training_handoff": "The training CLI explicitly conditions on exported semantic text and checks source, normalization, tokens, real updates and exact resume."
+  },
+  "native_api": {
+    "machine_segments": 2,
+    "source_frames": 119,
+    "split": "train",
+    "text_save_reload": true,
+    "object_clear_save_reload": true,
+    "incomplete_coverage_rejected": true,
+    "explicit_approval_export": true,
+    "stale_approval_rejected": true,
+    "machine_predictions_unchanged": true,
+    "original_inputs_unchanged": true,
+    "historical_export_unchanged": true,
+    "corrections_and_approvals_are_automated_fixtures": true,
+    "browser_used": false
+  },
+  "official_lerobot_loader": {
+    "status": "passed",
+    "loaded_rows": 119,
+    "split": "train",
+    "training_version": "89098db6fccb8b90201b2260",
+    "exact_numeric_rows": true,
+    "frame_aligned_text_and_objects": true,
+    "decoded_images_verified": true,
+    "dataloader_all_rows": true,
+    "video_backend": "pyav",
+    "model_inference": false
+  },
+  "pretrained_training": {
+    "trainable_parameters": 430098464,
+    "training_steps": [
+      {
+        "loss": 0.18332841992378235,
+        "gradient_norm": 1.860446572303772,
+        "step": 1
+      },
+      {
+        "loss": 0.17792506515979767,
+        "gradient_norm": 1.5097341537475586,
+        "step": 2
+      }
+    ],
+    "resumed_next_step": {
+      "loss": 0.17792506515979767,
+      "gradient_norm": 1.5097341537475586,
+      "step": 2
+    },
+    "parameter_tensors_verified_after_resume": 208,
+    "checkpoint_next_update_exact": true,
+    "checkpoint_sampled_actions_exact": true,
+    "expert_parameters_changed": true,
+    "all_actions_finite": true,
+    "output_shape": [
+      1,
+      50,
+      8
+    ],
+    "model_compute": {
+      "frozen_encoder": "mps",
+      "action_expert_training": "mlx.gpu"
+    },
+    "cpu_model_inference": false,
+    "mps_cpu_fallback": false
+  },
+  "conditioning": {
+    "feature": "annotation.subtask_text",
+    "text": "The robot arm is moving to the right, reaching for the cable.",
+    "matches_unchanged_qwen_segment": true,
+    "source_frame": 16,
+    "valid_cameras": 1,
+    "normalization_statistics_split": "train"
+  },
+  "test_suites": {
+    "core": {
+      "passed": 225,
+      "skipped": 2
+    },
+    "semantic": {
+      "passed": 21
+    },
+    "mlx_including_training_boundary_tests": {
+      "passed": 33
+    },
+    "lerobot_roundtrip": {
+      "passed": 5
+    },
+    "ruff": "passed",
+    "javascript_syntax": "passed"
+  },
+  "data": {
+    "dataset": "DROID public pilot",
+    "episodes": 1,
+    "timing": "inferred nominal15Hz",
+    "training_fixture_reuses_public_pilot": true,
+    "automated_native_corrections_and_approvals": true,
+    "independent_reference_labels_created": false,
+    "semantic_accuracy_measured": false,
+    "robot_policy_quality_measured": false
+  },
+  "evidence_sha256": {
+    "qwen-train/run.json": "b114a33c219c151a2d520d48ef6c56233758bf28b6b653c9f94ead2aef98cd48",
+    "qwen-train/predictions.json": "f9bc987212f46c34f34b67786cfb23d19f9f216fa34d65c1bc4bb77b048d0bb9",
+    "api-review-train/report.json": "c65819ca1c82b301fc82ff198b1d5b7cf4acc5367c557731c39ed9aedf72f882",
+    "lerobot-loader-report.json": "481c1646d71891de87251248ceb8bc1b0f25c6ab712e4edb7dc5d1a27cfc9f43",
+    "pretrained-training/report.json": "7c2997c00ef99ee968036ce91d8f8068674be6b1297ca4759034ac581c773419",
+    "pretrained-training/actions.npz": "37bdf80f4fdddc090a674efabc6cf919e9713abdd92bbf8e46a2179aace6f082",
+    "pretrained-training/step1/manifest.json": "7919411c1d892d808d5599c541f0b3d66e42fb470f70c407eff389d173910fbe",
+    "mps-f16-sdpa.json": "5cd2661c5ce3c9435afc628dbc519757567ed66bbffc528c923d29cf283aeecd",
+    "mps-f16-eager.json": "401d7233f906e70c94e41a11c74f34492b93d2c5c2265f5bfc226b652efb035b",
+    "cpu-f16.json": "5b64f1f0e55c1f3e80082aa8d991164acf91f7cae1af1c3b25b03f249f8d5c43",
+    "mps-eager-arithmetic-natural.json": "214d8a1f6a0088e042ce611aacf15de7d9e33aa6ada4dd5598b08fe0f1922e10"
+  },
+  "principles": {
+    "Prove It Works": "Ran the real pinned models and read saved raw outputs, loaded rows and action arrays.",
+    "Fix Root Causes": "Compared CPU/MPS attention behavior and retained failed generation evidence.",
+    "Sequence Work into Verifiable Units": "Verified model output, native export, official loading and training independently before publishing.",
+    "Explain the Number": "Counts cover one real119frame episode, all208expert tensors at resume and two actual optimizer steps; no speed or quality claim."
+  }
+}

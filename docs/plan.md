@@ -12,15 +12,15 @@ The implemented slices and their evidence are listed below. The next approved mi
 | Local RLDS intake | Generated multi-episode/shard tests, hash-checked resume, partial-source reports and the unchanged real pilot |
 | Semantic evaluation contract | Source-frame segments, separate predictions/references, split and independence checks, and generated evaluator tests; no real accuracy result yet |
 | Robot-state baseline | Coarse text-labeled candidates, ten generated tests and execution on all 119 real pilot frames; semantic accuracy remains unmeasured |
-| Local Qwen adapter | Official tiny-model multiframe execution, pinned-asset checks and strict output contracts; full pretrained inference and hardware fit remain untested |
+| Local Qwen adapter | Full pinned pretrained Qwen on MPS produces valid segments for the real pilot; strict output validation and source evidence are retained |
 | LeRobot conversion | Every loaded DROID state/action vector compared with the source; official loader and DataLoader tested |
-| MLX compatibility | PI05 action-expert loss, gradients, updates and resume compared with small official models on MPS and MLX Metal |
+| MLX compatibility | Small-model parity plus two full pretrained action-expert updates from real semantic export; exact checkpoint resume on MPS and MLX Metal |
 | Full PI05 inference | Pinned pretrained checkpoint, generated raw observations, official preprocessing and postprocessing, and complete action chunks verified on the M5 Pro |
 | Batch workflow | Interrupted-import recovery, native priority queue, isolated failures and accepted export |
 | Controlled corruption benchmark | Two seeds, 16 cases each, four complete repairs, three data-review cases and seven rejections |
 
 The [demo](demo.md) reproduces the workflow. The [results](results.md) link the recorded evidence.
 
-Full pretrained synthetic inference now passes on the M5 Pro. The [recorded run](evidence/pi05-synthetic-metal.json) uses the public official tokenizer and full checkpoint. Pretrained training, peak memory use, sustained speed and policy quality remain unmeasured.
+Full pretrained synthetic inference now passes on the M5 Pro. The [recorded run](evidence/pi05-synthetic-metal.json) uses the public official tokenizer and full checkpoint. The [semantic end-to-end check](evidence/mac-semantic-e2e.json) also passes real Qwen inference, native API correction/export, official LeRobot loading and two pretrained policy updates with exact resume. Peak memory use, sustained speed, independent annotation accuracy and policy quality remain unmeasured.
 
 The original proposal also asked whether assistance saves human time while preserving label quality. No human study was conducted. The [study protocol](evaluation.md) remains available for that separate experiment, including independent reference labels and matched manual/assisted conditions. Automated fixture approvals and queue counts cannot substitute for those measurements.
