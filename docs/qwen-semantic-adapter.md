@@ -35,6 +35,8 @@ For annotations that enter policy training, create a frozen plan with `--split t
 
 Defaults are one episode, eight-second windows, at most 16 sampled frames per window, 40 windows, 4,096 input tokens and 768 generated tokens per call. `--config` accepts a JSON `Config` with explicit bounds and any declared tuning episode IDs. The chosen split must fit the episode budget; the command never silently drops extra episodes. Source frames are decoded in order once per episode, downscaled to at most 320 pixels on the longest side without cropping, and passed to the official image processor. The prompt carries exact source-frame times, including the inferred-clock designation retained in the output. It does not use Qwen's default video-FPS inference.
 
+The prompt requests one to three activity phases per window, with a short verb phrase of at most 12 words for each description. It asks the model to combine consecutive frames showing unchanged activity. These instructions limit repeated frame narration within the output budget; they do not guarantee model compliance or temporal accuracy.
+
 Windows are processed independently. Window edges can therefore create extra predicted segment boundaries; there is no unvalidated merge across windows. Sparse images can miss brief actions. Those are properties to measure against independent references, not reasons to remove difficult input from the benchmark.
 
 ## Output and failure handling
@@ -42,6 +44,8 @@ Windows are processed independently. Window edges can therefore create extra pre
 The output directory contains immutable unedited predictions, raw replies, source-frame indices/times, RGB hashes for the supplied images, prompt hashes, token counts, model asset hashes and device/dtype information. Use a fresh directory for each model run. References are not an input to the prediction command, and stored review revisions are not read.
 
 The response must be a JSON array covering each window in order. Actions must belong to the frozen taxonomy; every segment needs at least one supplied evidence frame. Unknown fields, gaps, overlaps, out-of-range boundaries and unsupported labels are rejected. A failed episode keeps its raw evidence and an explicit error but contributes no invented segments. It remains in `predictions.json`, so the evaluator counts its misses. The source snapshot is checked again before publishing a successful episode result.
+
+Raw execution metadata distinguishes an EOS stop from exhaustion of the output-token budget. A validation failure after token exhaustion includes the budget in its error. The adapter saves the exact raw reply before validation and never repairs or retries a truncated response. A complete valid reply at the token limit remains acceptable.
 
 The CLI exits with status 2 when any episode fails, after saving its raw reply, predictions and run manifest. Status 0 means all selected episodes passed the output contract. It does not establish semantic accuracy.
 
