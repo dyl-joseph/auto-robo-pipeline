@@ -98,6 +98,8 @@ class FixtureRuntime(Runtime):
                 "failed_predictions": int(error is not None),
             },
         )
+        if error:
+            raise StageFailure("Provider exited 2 after publishing its failed prediction")
 
     def training(self, accepted, store, schema, split, output):
         records = validate_export(accepted)
@@ -236,8 +238,10 @@ def accept(engine, item):
     )
 
 
-def test_resumes_prediction_publication_review_and_versioned_export(workflow):
+@pytest.mark.parametrize("split", ["development", "train"])
+def test_resumes_prediction_publication_review_and_versioned_export(workflow, split):
     engine, runtime, sdk, _ = workflow
+    engine.config = engine.config.model_copy(update={"split": split})
     sdk.interrupt_import = True
     first = engine.run()
     assert first["status"] == "blocked" and exit_status(first) == 2
@@ -259,7 +263,7 @@ def test_resumes_prediction_publication_review_and_versioned_export(workflow):
     accepted = Path(completed["export"]["accepted"])
     records = validate_export(accepted)
     assert records[0]["annotation"]["native"]["semantic_review"]["complete"]
-    assert records[0]["split"] == "development"
+    assert records[0]["split"] == split
     assert engine.run()["export"] == completed["export"]
     assert len(runtime.calls) == sdk.import_calls == 1
     text = next(r for r in annotation["result"] if r["from_name"] == "subtask_text")
@@ -405,6 +409,67 @@ def test_aggregate_keeps_provider_tuning_declarations(workflow, monkeypatch):
     report = engine.run()
     predictions = Predictions.model_validate_json((engine.root / "predictions.json").read_bytes())
     assert predictions.tuning_episode_ids == [report["items"][0]["episode_id"]]
+
+
+def test_evaluation_uses_original_predictions_and_requires_real_identity_audit(workflow):
+    engine, _, sdk, _ = workflow
+    reference_path = engine.root / "fixture-references.json"
+    engine.config = engine.config.model_copy(update={"references": reference_path})
+    first = engine.run()
+    key = first["items"][0]["episode_id"]
+    plan = EvaluationPlan.model_validate_json((engine.root / "plan.json").read_bytes())
+    reference_hash = digest("separately constructed release fixture")
+    reference = {
+        "plan_sha256": plan.plan_sha256,
+        "evidence_kind": "synthetic_fixture",
+        "episodes": [
+            {
+                "episode_id": key,
+                "segments": [
+                    {
+                        "episode_id": key,
+                        "start_s": 0,
+                        "end_s": 2,
+                        "source_frames": {"start": 0, "end_exclusive": 20, "evidence": [0]},
+                        "subtask_text": "Generated reference release",
+                        "normalized_action": "release",
+                        "object_text": None,
+                        "uncertainty": None,
+                        "provenance": {
+                            "kind": "synthetic_fixture",
+                            "producer": "generated reference",
+                            "artifact_sha256": reference_hash,
+                        },
+                    }
+                ],
+                "audit": {
+                    "status": "synthetic_fixture",
+                    "method": "synthetic_fixture",
+                    "annotators": ["generated"],
+                    "source_uri": "fixture://reference",
+                    "source_sha256": reference_hash,
+                    "license": "generated",
+                    "license_url": "fixture://license",
+                    "prediction_exposure": False,
+                },
+            }
+        ],
+    }
+    atomic_json(reference_path, reference)
+    scored = engine.run()["evaluation"]
+    assert scored["status"] == "scored"
+    evidence = Path(scored["path"]).read_bytes()
+    assert json.loads(evidence)["metrics"]["action"]["0.5"]["f1"] == 0
+    annotation = sdk.save_annotation(1)
+    next(r for r in annotation["result"] if r["from_name"] == "subtask")["value"][
+        "timelinelabels"
+    ] = ["release"]
+    assert engine.run()["evaluation"] == scored
+    assert Path(scored["path"]).read_bytes() == evidence
+    reference["evidence_kind"] = "independent_human_reference"
+    atomic_json(reference_path, reference)
+    blocked = engine.run()["evaluation"]
+    assert blocked["status"] == "blocked" and "identity/split audit" in blocked["reason"]
 
 
 @pytest.mark.parametrize("target", ["episodes", "conversion.json", "receipt.json"])

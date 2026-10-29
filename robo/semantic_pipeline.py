@@ -37,7 +37,7 @@ class Configuration(Contract):
         "exterior_image_1_left"
     )
     source_split: str = Field(default="train", min_length=1, max_length=50)
-    split: Literal["development", "test"] = "development"
+    split: Literal["train", "development", "test"] = "development"
     max_episodes: int = Field(default=1, ge=1, le=200, strict=True)
     allow_partial: bool = False
     instance: str = "http://127.0.0.1:8000"
