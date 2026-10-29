@@ -116,6 +116,49 @@ uv run --locked python -m robo validate-export artifacts/mac-semantic/accepted
 
 Optional [LeRobot conversion](semantic-review.md#export-frame-aligned-text) uses the single `training-schema.json` under this inbox, the same source store and `--split development`. It preserves corrected text as annotation features; it does not train a policy or change PI05 conditioning.
 
+## 6. Check the training path without a browser
+
+Use a separate `train` plan for this integration check. The public pilot can be reused as a training fixture; that does not make it independent benchmark data. Development and test exports cannot be passed to the trainer. Download or supply the [full pretrained PI05 assets](mlx.md#run-full-inference-with-synthetic-observations) first, then install the dataset and training runtimes:
+
+```bash
+uv sync --locked --project integrations/lerobot
+uv sync --locked --project integrations/mlx_pi
+uv run --locked python -m robo.semantic_plan \
+  --store data/local/mac-semantic-store --dataset DROID \
+  --camera exterior_image_1_left --split train \
+  --guidelines docs/semantic-guidelines.md --output artifacts/mac-semantic/train-plan.json
+
+PYTORCH_ENABLE_MPS_FALLBACK=0 HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 \
+  uv run --locked --project integrations/semantic python -m integrations.semantic.qwen \
+  --model-dir models/local/qwen3-vl-2b --device mps --split train \
+  --plan artifacts/mac-semantic/train-plan.json --store data/local/mac-semantic-store \
+  --output artifacts/mac-semantic/qwen-train
+
+uv run --locked python -m scripts.semantic_api_verify \
+  --source data/local/mac-semantic-inbox/episodes/*/source.json \
+  --plan artifacts/mac-semantic/train-plan.json \
+  --predictions artifacts/mac-semantic/qwen-train/predictions.json \
+  --output artifacts/mac-semantic/training-api-check
+
+uv run --locked --project integrations/lerobot python -m robo.lerobot_export \
+  --accepted artifacts/mac-semantic/training-api-check/accepted-refreshed \
+  --source-root artifacts/mac-semantic/training-api-check/source \
+  --schema data/local/mac-semantic-inbox/episodes/*/training-schema.json \
+  --split train --output artifacts/mac-semantic/lerobot-train
+
+MLX_ENABLE_TF32=0 PYTORCH_ENABLE_MPS_FALLBACK=0 HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 \
+  uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.train_export \
+  --dataset artifacts/mac-semantic/lerobot-train --checkpoint artifacts/pi05-base \
+  --output artifacts/mac-semantic/pi05-training --sample-index 16 \
+  --camera-map observation.images.source=observation.images.base_0_rgb \
+  --task-key annotation.subtask_text \
+  --action-representation droid_absolute_joint_positions_gripper_closure
+```
+
+The API verifier uses the actual Label Studio backend and official SDK. Its edits and approvals are automated fixtures. It preserves the original Qwen predictions and checks save/reload, cleared objects, stale approvals and historical exports. It verifies persisted backend state without a rendered editor.
+
+The trainer consumes the exported Qwen subtask text, real camera/state/action data and statistics fitted only to this train export. It runs the full frozen encoder on MPS, updates the pretrained action expert twice on MLX Metal, and requires exact checkpoint resume and finite postprocessed actions. Frame 16 lies inside a sufficiently long subtask in the [recorded check](evidence/mac-semantic-e2e.json). Other data or predictions may need a different explicit index. A chunk crossing an episode or subtask boundary is rejected. Keep the training `report.json`, `actions.npz` and checkpoint manifest.
+
 ## What to report
 
 Keep the git revision, `hardware.txt`, preflight result, `qwen/run.json`, `qwen-time.log`, and whether native save/reload and approved export succeeded. If the run failed, retain the exact command and error. These are execution findings. No raw dataset, model weights or session credentials need to be shared.
