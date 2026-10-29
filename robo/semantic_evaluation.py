@@ -9,6 +9,7 @@ import numpy as np
 from robo.core import atomic_json, digest
 from robo.evaluation import match
 from robo.semantic import EvaluationPlan, Predictions, References, validate_episode_segments
+from robo.semantic_routing import review_reasons
 
 
 def normalized_text(value):
@@ -142,17 +143,9 @@ def evaluate(
     episodes = []
     for key, spec in selected.items():
         row = predicted[key]
-        reasons = []
-        if row.error:
-            reasons.append("prediction_failed")
+        reasons = review_reasons(plan, spec, row)
         covered = sum(s.source_frames.end_exclusive - s.source_frames.start for s in row.segments)
         frames = len(spec.frame_boundaries_s) - 1
-        if covered < frames:
-            reasons.append("unlabeled_frames")
-        if any(s.normalized_action in {"unknown", "not_observable"} for s in row.segments):
-            reasons.append("unknown_or_not_observable")
-        if any(s.uncertainty >= plan.review_uncertainty_threshold for s in row.segments):
-            reasons.append("uncertain_segment")
         episodes.append(
             {
                 "episode_id": key,

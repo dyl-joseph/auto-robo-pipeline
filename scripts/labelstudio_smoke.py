@@ -162,6 +162,15 @@ def run(directory: Path, real_source: Path | None = None):
     sdk = LabelStudio(
         base_url="http://testserver", api_key="local-session-transport", httpx_client=client
     )
+    if "--semantic-pipeline" in sys.argv:
+        from django.test import override_settings
+
+        from scripts.semantic_pipeline_smoke import verify_pipeline
+
+        with override_settings(
+            LOCAL_FILES_DOCUMENT_ROOT=str(directory / "semantic-pipeline/store")
+        ):
+            return verify_pipeline(sdk, directory, args.semantic_pipeline, browser)
     if "--semantic" in sys.argv:
         from scripts.semantic_smoke import verify_semantic
 
@@ -460,11 +469,15 @@ if __name__ == "__main__":
     parser.add_argument("--sync-contract", action="store_true")
     parser.add_argument("--batch", action="store_true")
     parser.add_argument("--semantic", action="store_true")
+    parser.add_argument("--semantic-pipeline", type=Path, help="Local DROID TFDS pilot directory")
     parser.add_argument("--source", type=Path, help="Converted local real DROID source.json")
     args = parser.parse_args()
     if args.semantic and not args.source:
         parser.error("--semantic requires the converted real DROID --source")
-    if args.source and (not (args.browser or args.batch or args.semantic) or args.sync_contract):
+    if args.source and (
+        not (args.browser or args.batch or args.semantic or args.semantic_pipeline)
+        or args.sync_contract
+    ):
         parser.error(
             "real DROID --source requires --browser, --batch or --semantic; "
             "excludes --sync-contract"
