@@ -75,6 +75,8 @@ The [semantic contract and evaluator](docs/semantic-evaluation.md) accept text-l
 
 The [DROID task-reference benchmark](docs/droid-task-benchmark.md) hides episode instructions from Qwen, freezes the cohort before inference, and compares unedited predictions with the original publisher task descriptions. It reports lexical diagnostics and optional independent task judgments, keeping failures and unjudged episodes visible. Episode descriptions do not supply temporal boundary truth, and no blind pretrained benchmark result is claimed yet.
 
+**Current limitation:** Qwen is prompted to summarize each window in one to three activity phases. This keeps replies within the output-token budget, but it can hide brief actions or combine distinct steps. Passing JSON validation and covering every frame show that an output meets the format contract; they do not establish label correctness or boundary accuracy. Those require comparison with suitable independent references.
+
 The [robot-state baseline](docs/semantic-state-baseline.md) produces coarse text-labeled motion and gripper candidates in that format. It has run on the 119-frame DROID pilot, but its object/contact interpretation and accuracy remain unverified. The [local Qwen adapter](docs/qwen-semantic-adapter.md) adds bounded sampled-image inference and strict output validation. Full pretrained MPS inference now passes on that pilot. The [semantic review path](docs/semantic-review.md) preserves unedited predictions while allowing native text and boundary corrections. Its real DROID check loads all 119 corrected rows through LeRobot; those automated corrections are not independent ground truth.
 
 ## Semantic prototype and remaining evaluation
