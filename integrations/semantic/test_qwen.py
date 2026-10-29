@@ -245,7 +245,7 @@ def test_input_token_budget_fails_before_generation():
         )
 
 
-def generated_store(tmp_path):
+def generated_store(tmp_path, *, task="Generated task"):
     import subprocess
 
     from robo.core import atomic_json
@@ -278,7 +278,7 @@ def generated_store(tmp_path):
         {
             "source_id": "generated",
             "release": "generated",
-            "task": "Generated task",
+            "task": task,
             "session": "generated-session",
             "video": "video.mp4",
             "license": "generated fixture",
@@ -308,6 +308,75 @@ def generated_store(tmp_path):
         episodes=[entry],
     )
     return store, episode, entry, plan
+
+
+@pytest.mark.parametrize("policy", ["provided-v1", "hidden-v1"])
+def test_task_context_policy_controls_actual_processor_prompt(policy, monkeypatch):
+    model, processor = tiny_official_model()
+    sentinel = "REFERENCE_ONLY_SENTINEL_9e01"
+    captured = []
+    original = processor.apply_chat_template
+
+    def capture(messages, **kwargs):
+        text = original(messages, **kwargs)
+        captured.append(text)
+        return text
+
+    monkeypatch.setattr(processor, "apply_chat_template", capture)
+    _, execution = qwen.generate(
+        model,
+        processor,
+        [Image.fromarray(np.zeros((32, 32, 3), dtype=np.uint8))],
+        [0],
+        spec(),
+        0,
+        20,
+        ["unknown", "not_observable", "motion"],
+        qwen.Config(task_context_policy=policy, max_new_tokens=1),
+        sentinel,
+    )
+    assert (sentinel in captured[0]) == (policy == "provided-v1")
+    assert execution["task_context_policy"] == policy
+
+
+def test_hidden_runner_never_passes_task_and_cannot_share_assisted_run_identity(
+    tmp_path, monkeypatch
+):
+    sentinel = "REFERENCE_ONLY_SENTINEL_9e01"
+    store, _, _, plan = generated_store(tmp_path, task=sentinel)
+    calls = []
+
+    def controlled(model, processor, images, indices, spec, start, end, actions, config, task):
+        calls.append(task)
+        assert task is None if config.task_context_policy == "hidden-v1" else task == sentinel
+        return json.dumps([proposal(start, end)]), {"fixture": True}
+
+    monkeypatch.setattr(qwen, "generate", controlled)
+    outputs = []
+    for policy in ("provided-v1", "hidden-v1", "hidden-v1"):
+        result = qwen.run(
+            plan,
+            store,
+            tmp_path / f"run-{len(outputs)}",
+            None,
+            None,
+            {"fixture": True},
+            config=qwen.Config(task_context_policy=policy),
+        )
+        outputs.append(result)
+    assert calls == [sentinel, None, None]
+    assert outputs[0]["run_id"] != outputs[1]["run_id"] == outputs[2]["run_id"]
+    assert not outputs[1]["source_task_context_supplied"]
+    with pytest.raises(ValueError, match="unused"):
+        qwen.run(
+            plan,
+            store,
+            tmp_path / "run-0",
+            None,
+            None,
+            {"fixture": True},
+            config=qwen.Config(task_context_policy="hidden-v1"),
+        )
 
 
 def test_decoded_windows_keep_global_frame_indices(tmp_path):
