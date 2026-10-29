@@ -88,6 +88,27 @@ The reference uses the official policy's full inference entry point on MPS with 
 
 The [recorded M5 Pro run](evidence/pi05-synthetic-metal.json) passes the complete flow with all three cameras and 138 task/state tokens. All 812 checkpoint tensors load strictly, with one additional state key for the tied input embedding. The full weight-file hash matches the official pinned LFS hash. Both complete `[1, 50, 32]` action chunks are finite. Maximum error against MPS is `6.11e-7` before postprocessing and `2.98e-7` afterward, below the unchanged `5e-5` absolute and relative tolerances. The [saved action arrays](evidence/pi05-synthetic-actions.npz) contain both normalized and postprocessed outputs. This is an inference correctness check with synthetic observations and statistics, not a policy-quality or performance benchmark.
 
+## Train from an accepted semantic export
+
+Freeze a plan as `train` before annotation, then explicitly accept its reviewed annotations. The runner rejects development and test exports. Convert the accepted train version to LeRobot with its declared DROID schema, then run:
+
+```bash
+MLX_ENABLE_TF32=0 PYTORCH_ENABLE_MPS_FALLBACK=0 HF_HUB_OFFLINE=1 \
+  uv run --locked --project integrations/mlx_pi python -m integrations.mlx_pi.train_export \
+  --dataset artifacts/semantic-train/lerobot --checkpoint artifacts/pi05-base \
+  --output artifacts/semantic-train/pi05-training \
+  --sample-index 16 \
+  --camera-map observation.images.source=observation.images.base_0_rgb \
+  --task-key annotation.subtask_text \
+  --action-representation droid_absolute_joint_positions_gripper_closure
+```
+
+The command verifies the export hashes, accepted revisions, train split and action schema before loading the model. It fits normalization quantiles from that train export and uses the selected frame's reviewed subtask text as task conditioning. `--task-key task` explicitly selects the original episode instruction instead. Camera mappings are explicit; the official policy masks absent wrist cameras.
+
+This bounded check uses one complete 50-frame action chunk. `--sample-index` selects its first frame. The command rejects a chunk padded at an episode boundary or spanning different subtask text when semantic conditioning is selected. Choose an index inside a sufficiently long subtask; the command never selects a different frame silently. Before encoding, it checks the exact task/state prompt, direct SentencePiece token parity, normalized state/actions and zero-padded action dimensions. The full pretrained encoder runs frozen on MPS. The action expert receives two MLX Metal optimizer updates. Its checkpoint includes the optimizer, random state, all five asset hashes and dataset/model contract. Resuming step one must reproduce step two's metrics, every parameter and the complete sampled action chunk exactly. The saved official postprocessor returns finite 50-step actions in the declared eight-dimensional DROID convention.
+
+Use a fresh output directory for every check. Frame 16 lies inside the long subtask in the [recorded pilot check](evidence/mac-semantic-e2e.json); choose a suitable index for other data. `step1` retains approximately 5.2 GB of action-expert weights and optimizer state. `report.json` is written only after training, resume and action checks pass. The public pilot is reused as a separate training fixture for this smoke check. Its automated corrections and approvals do not establish independent annotation accuracy or robot policy quality.
+
 ## Checkpoint and DROID compatibility
 
 The chosen checkpoint is [`lerobot/pi05_base`](https://huggingface.co/lerobot/pi05_base/tree/22c30e5b34f9e7ab738b1b34fc2fc5ecfe2d28f0). Its 14,467,165,872-byte file was inspected through HTTP range requests. All 208 action-expert tensor shapes match the adapter's full configuration: width 1024, 18 layers, 8 query heads, one key/value head, head dimension 256, 32 action dimensions and a 50-step chunk. Those tensors contain 430,098,464 parameters. Shape compatibility alone does not establish pretrained output parity.
@@ -104,4 +125,4 @@ The DROID export contains seven absolute joint positions in radians and one grip
 
 The public PI05 weight file is ungated. Earlier requests for Google's Hugging Face tokenizer files returned HTTP 401. The full inference check uses the public Google SentencePiece asset that official OpenPI downloads anonymously. Its task/state tokens match direct SentencePiece encoding. The runner loads all assets locally and makes no tokenizer request to Hugging Face. [Source and license details](../integrations/mlx_pi/NOTICE.md) distinguish the Apache implementation from the Gemma assets.
 
-Small-model checks and full pretrained synthetic inference now pass on MPS and MLX Metal. Pretrained training, peak memory use, sustained speed and model quality remain unmeasured. The run does not establish robot-specific action semantics or dataset statistics. Mixed precision, quantization and training the vision/language encoder are outside this adapter's current scope.
+Small-model checks, full pretrained synthetic inference, and two pretrained action-expert updates from the semantic train export pass on MPS and MLX Metal. Checkpoint resume reproduces the next update and sampled actions exactly. Peak memory use, sustained speed and model quality remain unmeasured. Mixed precision, quantization and training the vision/language encoder remain outside this adapter's scope.

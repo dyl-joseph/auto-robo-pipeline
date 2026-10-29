@@ -167,8 +167,8 @@ def run(plan, store, output, *, split="test", config=None):
     config = config or BaselineConfig()
     if not set(TEXT).issubset(plan.normalized_actions):
         raise ValueError("baseline taxonomy requires unknown, motion, hold, grasp and release")
-    if split not in {"development", "test"}:
-        raise ValueError("choose development or test for baseline prediction")
+    if split not in {"train", "development", "test"}:
+        raise ValueError("choose train, development or test for baseline prediction")
     selected = [e for e in plan.episodes if e.split == split]
     if not selected:
         raise ValueError("no episodes in chosen split")
@@ -177,7 +177,7 @@ def run(plan, store, output, *, split="test", config=None):
         key not in population or population[key].split == "test" or population[key].split == split
         for key in config.tuning_episode_ids
     ):
-        raise ValueError("tuning episodes must be declared outside the evaluated split")
+        raise ValueError("tuning episodes must be declared outside the annotated split")
     output = Path(output).resolve()
     if output.is_relative_to(store.root) or store.root.is_relative_to(output):
         raise ValueError("Keep prediction output separate from the source store")
@@ -221,6 +221,8 @@ def run(plan, store, output, *, split="test", config=None):
         atomic_json(temporary / "predictions.json", predictions.model_dump())
         manifest = {
             "run_id": run_id,
+            "split": split,
+            "purpose": "training_annotations" if split == "train" else "evaluation_predictions",
             "configuration": configuration,
             "files": {p.name: file_hash(p) for p in temporary.iterdir()},
             "episode_count": len(results),
@@ -248,7 +250,7 @@ def main():
     parser.add_argument("plan", type=Path)
     parser.add_argument("store", type=Path)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--split", choices=("development", "test"), default="test")
+    parser.add_argument("--split", choices=("train", "development", "test"), default="test")
     parser.add_argument("--config", type=Path)
     args = parser.parse_args()
     if not (args.store / "review.sqlite").is_file():
@@ -259,12 +261,10 @@ def main():
         if args.config
         else BaselineConfig()
     )
-    print(
-        json.dumps(
-            run(plan, Store(args.store), args.output, split=args.split, config=config), indent=2
-        )
-    )
+    manifest = run(plan, Store(args.store), args.output, split=args.split, config=config)
+    print(json.dumps(manifest, indent=2))
+    return 2 if manifest["failed_predictions"] else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

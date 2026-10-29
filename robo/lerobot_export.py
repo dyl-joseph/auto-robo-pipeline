@@ -94,12 +94,16 @@ def convert(accepted: Path, source_root: Path, output: Path, schema: TrainingSch
         raise ValueError("accepted version contains no episodes in the requested split")
     accepted_manifest = json.loads((accepted / "manifest.json").read_text())
     # Validate all alignment/required features before starting a potentially costly encode.
+    semantic_modes = set()
     for record in records:
         source_path(source_root, record["episode"])
-        plan_episode(record, schema)
+        semantic_modes.add(plan_episode(record, schema)["semantic"] is not None)
+    if len(semantic_modes) != 1:
+        raise ValueError("export semantic and legacy reviews separately; text must not be dropped")
+    semantic = semantic_modes == {True}
     identity = {
         "schema_version": 1,
-        "adapter_version": 1,
+        "adapter_version": 2 if semantic else 1,
         "lerobot_version": "0.6.1",
         "accepted_version": accepted_manifest["version"],
         "accepted_records_hash": accepted_manifest["records_hash"],
@@ -120,6 +124,13 @@ def convert(accepted: Path, source_root: Path, output: Path, schema: TrainingSch
         "policy": POLICY,
         "video_encoding": {"codec": "h264", "crf": 18, "pixel_format": "yuv420p"},
     }
+    if semantic:
+        identity["semantic_policy"] = (
+            "Model-assisted corrected text, not independent reference labels. "
+            "Text and action labels follow source.frame_index on the causal video map. "
+            "An absent object is empty text with object_present=false. "
+            "The episode task remains unchanged."
+        )
     export_version = digest(identity)[:24]
     if output.exists():
         existing = validate_training_export(output)
@@ -152,6 +163,18 @@ def convert(accepted: Path, source_root: Path, output: Path, schema: TrainingSch
             "source.timestamp": {"dtype": "float64", "shape": (1,), "names": ["original_pts_s"]},
         }
     )
+    if semantic:
+        features.update(
+            {
+                name: {"dtype": "string", "shape": (1,), "names": ["text"]}
+                for name in ("annotation.subtask_text", "annotation.object_text")
+            }
+        )
+        features["annotation.object_present"] = {
+            "dtype": "bool",
+            "shape": (1,),
+            "names": ["present"],
+        }
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=".lerobot-", dir=output.parent))
     staging = temporary / "dataset"
@@ -179,6 +202,7 @@ def convert(accepted: Path, source_root: Path, output: Path, schema: TrainingSch
                         "task": episode["task"],
                         "observation.images.source": image,
                         **{key: values[j] for key, values in plan["features"].items()},
+                        **{key: values[j] for key, values in (plan["semantic"] or {}).items()},
                         "annotation.subtask": np.array([plan["labels"][j]], dtype=np.int64),
                         "source.frame_index": np.array([plan["video_indices"][j]], dtype=np.int64),
                         "source.timestamp": np.array(

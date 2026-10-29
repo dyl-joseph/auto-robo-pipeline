@@ -10,6 +10,8 @@ For a single episode, `prepare-labelstudio EPISODE_ID` writes a task JSON, label
 
 Python callers can pass an authenticated official SDK client to `publish_bundle()`. The function creates the project, storage and task, then returns a binding that records the source, task and proxy. `NativeReviewBridge` uses that binding to read a saved annotation and check it before approval or export. See [native approval](native-approval.md).
 
+For text-labeled predictions, the [semantic review adapter](semantic-review.md) adds native per-region TextArea controls and preserves the unedited inputs separately from corrections.
+
 ## Review clocks and source clocks
 
 Label Studio recommends constant-frame-rate video. The bridge creates a display proxy by holding each source frame until the next original timestamp. The default rate is the ceiling of the reciprocal of the shortest frame interval, up to 60 fps. Preparation fails if that rate cannot include every source frame. An explicit `--fps` can use a coarser grid, with omissions reported in the manifest and task banner.

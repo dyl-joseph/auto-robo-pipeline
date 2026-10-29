@@ -162,6 +162,10 @@ def run(directory: Path, real_source: Path | None = None):
     sdk = LabelStudio(
         base_url="http://testserver", api_key="local-session-transport", httpx_client=client
     )
+    if "--semantic" in sys.argv:
+        from scripts.semantic_smoke import verify_semantic
+
+        return verify_semantic(sdk, store, episodes[0], directory, cookies)
     if "--batch" in sys.argv:
         from django.test import override_settings
 
@@ -455,10 +459,16 @@ if __name__ == "__main__":
     parser.add_argument("--browser", action="store_true")
     parser.add_argument("--sync-contract", action="store_true")
     parser.add_argument("--batch", action="store_true")
+    parser.add_argument("--semantic", action="store_true")
     parser.add_argument("--source", type=Path, help="Converted local real DROID source.json")
     args = parser.parse_args()
-    if args.source and (not (args.browser or args.batch) or args.sync_contract):
-        parser.error("real DROID --source requires --browser or --batch; excludes --sync-contract")
+    if args.semantic and not args.source:
+        parser.error("--semantic requires the converted real DROID --source")
+    if args.source and (not (args.browser or args.batch or args.semantic) or args.sync_contract):
+        parser.error(
+            "real DROID --source requires --browser, --batch or --semantic; "
+            "excludes --sync-contract"
+        )
     Path("artifacts").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix="labelstudio-", dir=Path("artifacts").resolve()

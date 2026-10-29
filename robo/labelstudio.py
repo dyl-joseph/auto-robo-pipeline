@@ -179,7 +179,13 @@ def prepare_proxy(store: Store, episode_id: str, fps: int | None = None) -> dict
     return result
 
 
-def label_config(columns: list[str], fps: int, column_units: dict[str, str] | None = None) -> str:
+def label_config(
+    columns: list[str],
+    fps: int,
+    column_units: dict[str, str] | None = None,
+    *,
+    semantic: bool = False,
+) -> str:
     import html
 
     labels = "".join(f'<Label value="{label}" background="#4b4b47"/>' for label in LABELS)
@@ -205,12 +211,25 @@ def label_config(columns: list[str], fps: int, column_units: dict[str, str] | No
         else '<Text name="missing" value="Robot streams unavailable; no state inferred."/>'
     )
     template = Path(__file__).resolve().parent.parent / "integrations/labelstudio/review.xml"
-    return (
+    config = (
         template.read_text()
         .replace("__FPS__", str(fps))
         .replace("__LABELS__", labels)
         .replace("__SENSORS__", sensors)
     )
+    if semantic:
+        config = config.replace(
+            "</TimelineLabels>",
+            """</TimelineLabels>
+  <Header value="Selected segment"/>
+  <TextArea name="subtask_text" toName="video" perRegion="true" required="true"
+    editable="true" transcription="true" maxSubmissions="1" rows="2"
+    placeholder="Describe this subtask"/>
+  <TextArea name="object_text" toName="video" perRegion="true"
+    editable="true" transcription="true" maxSubmissions="1" rows="1"
+    placeholder="Object, if observable"/>""",
+        )
+    return config
 
 
 def prediction_results(segments: list[dict], proxy: dict) -> list[dict]:
@@ -364,16 +383,29 @@ def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) ->
     directory = store.root / "review_proxy" / proxy["id"]
     if any(file_hash(directory / name) != value for name, value in proxy["files"].items()):
         raise ValueError("review proxy artifact hash mismatch")
+    semantic_spec = None
+    if binding.get("semantic_prediction"):
+        from robo.semantic_review import bound_prediction
+
+        semantic_spec, _, _ = bound_prediction(store, binding)
     annotations = []
     for annotation in task.get("annotations", []):
         if annotation.get("was_cancelled"):
             continue
+        semantic_review = {}
+        if semantic_spec:
+            from robo.semantic_review import decoded_review
+
+            semantic_review["semantic_review"] = decoded_review(
+                annotation["result"], semantic_spec, proxy
+            )
         annotations.append(
             {
+                **semantic_review,
                 "annotation_id": annotation["id"],
                 "content_hash": digest(annotation),
                 "segments": decoded_segments(annotation["result"], proxy, episode),
-                **review_fields(annotation["result"]),
+                **review_fields(annotation["result"], semantic=semantic_spec is not None),
                 "raw_annotation": annotation,
                 "boundary_evidence": boundary_evidence(annotation["result"], proxy, episode),
                 "eligibility": "draft; explicit bridge approval still required",
@@ -393,7 +425,7 @@ def annotation_snapshot(store: Store, binding: dict, task: dict, proxy: dict) ->
     return snapshot
 
 
-def review_fields(results: list[dict]) -> dict:
+def review_fields(results: list[dict], *, semantic: bool = False) -> dict:
     """Decode supported controls and reject unknown annotation fields."""
     fields = {"outcome": "unknown", "quality_flags": [], "reviewer_evidence": []}
     seen = set()
@@ -401,6 +433,8 @@ def review_fields(results: list[dict]) -> dict:
         kind, name = result.get("type"), result.get("from_name")
         if kind == "timelinelabels" and name == "subtask":
             continue
+        if semantic and name in {"subtask_text", "object_text"}:
+            continue  # The semantic decoder validates region identity, text and ranges first.
         expected = {"outcome": "choices", "quality": "choices", "decision_note": "textarea"}
         if (
             name not in expected

@@ -411,3 +411,81 @@ def test_cli_checks_episode_budget_before_loading_weights(tmp_path, monkeypatch)
     )
     with pytest.raises(ValueError, match="episode budget"):
         qwen.main()
+
+
+@pytest.mark.parametrize("invalid_reply", [False, True])
+def test_cli_annotates_training_split_without_changing_plan(
+    tmp_path, monkeypatch, capsys, invalid_reply
+):
+    import sys
+
+    from robo.core import atomic_json
+    from robo.semantic import EvaluationPlan, Predictions
+
+    store, _, entry, plan = generated_store(tmp_path)
+    body = plan.model_dump()
+    body["episodes"][0]["split"] = "train"
+    plan = EvaluationPlan.model_validate(body)
+    plan_path, output = tmp_path / "train-plan.json", tmp_path / "train-output"
+    atomic_json(plan_path, plan.model_dump())
+    plan_bytes = plan_path.read_bytes()
+
+    def generated_reply(model, processor, images, indices, spec, start, end, *args):
+        reply = "invalid fixture reply" if invalid_reply else json.dumps([proposal(start, end)])
+        return reply, {"evidence_kind": "generated_runner_fixture"}
+
+    monkeypatch.setattr(qwen, "load", lambda *a: (None, None, {"evidence_kind": "fixture"}))
+    monkeypatch.setattr(qwen, "generate", generated_reply)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "qwen",
+            "--model-dir",
+            str(tmp_path / "fixture-model"),
+            "--device",
+            "cpu",
+            "--plan",
+            str(plan_path),
+            "--store",
+            str(store.root),
+            "--output",
+            str(output),
+            "--split",
+            "train",
+        ],
+    )
+    exit_code = qwen.main()
+    manifest = json.loads(capsys.readouterr().out)
+    assert exit_code == (2 if invalid_reply else 0)
+    assert manifest["split"] == "train"
+    assert manifest["purpose"] == "training_annotations"
+    assert manifest["failed_predictions"] == int(invalid_reply)
+    predictions = Predictions.model_validate_json((output / "predictions.json").read_bytes())
+    assert predictions.plan_sha256 == plan.plan_sha256
+    assert predictions.episodes[0].episode_id == entry.episode_id
+    if invalid_reply:
+        assert predictions.episodes[0].error and not predictions.episodes[0].segments
+    else:
+        assert predictions.episodes[0].segments[-1].source_frames.end_exclusive == 20
+    assert plan_path.read_bytes() == plan_bytes
+
+
+def test_training_annotation_keeps_tuning_leakage_checks():
+    from robo.semantic import EvaluationPlan
+
+    entry = spec().model_copy(update={"split": "train"})
+    plan = EvaluationPlan(
+        taxonomy_id="generated",
+        normalized_actions=["unknown", "not_observable", "motion"],
+        annotation_guidelines_sha256=digest("generated instructions"),
+        identity_audit={
+            "status": "synthetic_fixture",
+            "reviewer": "fixture",
+            "evidence_sha256": digest("fixture"),
+        },
+        episodes=[entry],
+    )
+    assert qwen.selected_episodes(plan, "train", qwen.Config()) == [entry]
+    with pytest.raises(ValueError, match="Tuning episodes"):
+        qwen.selected_episodes(plan, "train", qwen.Config(tuning_episode_ids=[entry.episode_id]))

@@ -75,6 +75,13 @@ class NativeReviewBridge:
         if config_hash(project.label_config) != config_hash(bundle["label_config"]):
             raise ValueError("native labeling configuration differs from the prepared review clock")
         annotation_snapshot(self.store, binding, {**task, "annotations": []}, bundle["proxy"])
+        if binding.get("semantic_prediction"):
+            from robo.semantic_review import bound_prediction, native_predictions
+
+            _, row, _ = bound_prediction(self.store, binding)
+            expected = native_predictions(row, binding["semantic_prediction"]["snapshot_id"])
+            if bundle["task"]["predictions"] != expected:
+                raise ValueError("semantic task differs from its uncorrected prediction snapshot")
         actual = [prediction_payload(p) for p in task["predictions"]]
         expected = [prediction_payload(p) for p in bundle["task"]["predictions"]]
         if actual != expected:
@@ -183,6 +190,8 @@ class NativeReviewBridge:
             "native_lead_time_s": lead_time,
             "active_time_policy": "unmeasured; native lead_time is not active correction time",
         }
+        if "semantic_review" in selected:
+            source["semantic_review"] = selected["semantic_review"]
         source["snapshot_hash"] = digest(source)
         source["observed_at"] = datetime.now(UTC).isoformat(timespec="microseconds")
         return {
@@ -227,6 +236,11 @@ class NativeReviewBridge:
             raise ValueError("refresh a native annotation as a draft before deciding")
         observation = self.observe(episode_id, revision["native"]["annotation_id"])
         native = observation.pop("native")
+        if decision == "accept" and native.get("semantic_review", {}).get("complete") is False:
+            raise ValueError(
+                "complete semantic coverage is required before acceptance; "
+                "label unknown spans explicitly"
+            )
         edit = Edit(
             expected_revision=expected_revision,
             actor=actor,
@@ -241,6 +255,7 @@ class NativeReviewBridge:
 
     def export(self, selection: list[dict], output: Path) -> dict:
         receipts = []
+        selected_splits = {s["episode_id"]: s["split"] for s in selection}
 
         def validate(revision):
             current = self.observe(revision["episode_id"], revision["native"]["annotation_id"])
@@ -248,6 +263,9 @@ class NativeReviewBridge:
                 raise Conflict(
                     "native annotation changed; refresh and explicitly approve a new draft"
                 )
+            semantic = current["native"].get("semantic_review")
+            if semantic and semantic["split"] != selected_splits[revision["episode_id"]]:
+                raise ValueError("semantic export must preserve the frozen evaluation split")
             receipts.append(
                 {
                     "episode_id": revision["episode_id"],

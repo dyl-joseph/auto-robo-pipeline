@@ -58,7 +58,6 @@ def main():
     reader = LeRobotDataset(
         f"local/{manifest['version']}",
         root=args.output,
-        video_backend="torchcodec",
         delta_timestamps={"action": [0, 1 / FPS]},
     )
     plan = plan_episode(record, schema)
@@ -114,6 +113,7 @@ def main():
         args.evidence,
         {
             "evidence_kind": "real_droid_native_browser_sdk_to_official_lerobot",
+            "video_backend": reader._video_backend,
             "versions": {name: version(name) for name in ("lerobot", "torch", "torchcodec", "av")},
             "source_shard_sha256": FILES[SHARD]["sha256"],
             "accepted_version": manifest["accepted_version"],

@@ -138,4 +138,57 @@ def plan_episode(record: dict, schema: TrainingSchema) -> dict:
     for segment in annotation["segments"]:
         mask = (grid >= segment["start_s"]) & (grid < segment["end_s"])
         labels[mask] = LABELS.index(segment["label"])
-    return {**plan, "labels": labels}
+    semantic = semantic_frames(record, plan["video_indices"])
+    if semantic is not None:
+        labels = semantic.pop("labels")
+    return {**plan, "labels": labels, "semantic": semantic}
+
+
+def semantic_frames(record: dict, indices):
+    """Attach reviewed text to the selected source frame, including deliberate repeats."""
+    from robo.semantic_review import ReviewedSegment
+
+    episode, annotation = record["episode"], record["annotation"]
+    review = (annotation.get("native") or {}).get("semantic_review")
+    if review is None:
+        return None
+    if (
+        review.get("schema_version") != 1
+        or review.get("kind") != "model_assisted_review"
+        or review.get("prediction_exposure") is not True
+        or review.get("complete") is not True
+        or review.get("split") != record["split"]
+    ):
+        raise ValueError("training export requires complete model-assisted semantic review")
+    segments = [ReviewedSegment.model_validate(s) for s in review["segments"]]
+    boundaries = [*episode["timestamps_s"], episode["duration_s"]]
+    end, source_rows = 0, []
+    if len(segments) != len(annotation["segments"]):
+        raise ValueError("semantic and timeline segments disagree")
+    for segment, timeline in zip(segments, annotation["segments"], strict=True):
+        if (
+            segment.source_start != end
+            or not end < segment.source_end_exclusive < len(boundaries)
+            or segment.normalized_action not in LABELS
+            or not segment.subtask_text.strip()
+            or (segment.object_text is not None and not segment.object_text.strip())
+            or abs(segment.start_s - boundaries[end]) > 1e-6
+            or abs(segment.end_s - boundaries[segment.source_end_exclusive]) > 1e-6
+            or abs(segment.start_s - timeline["start_s"]) > 1e-6
+            or abs(segment.end_s - timeline["end_s"]) > 1e-6
+            or segment.normalized_action != timeline["label"]
+        ):
+            raise ValueError("semantic coverage, source frames or timeline labels disagree")
+        source_rows.extend([segment] * (segment.source_end_exclusive - end))
+        end = segment.source_end_exclusive
+    if not source_rows or end != len(boundaries) - 1:
+        raise ValueError("semantic review does not cover all source frames")
+    selected = [source_rows[i] for i in indices]
+    return {
+        "labels": np.asarray([LABELS.index(s.normalized_action) for s in selected], dtype=np.int64),
+        "annotation.subtask_text": [s.subtask_text for s in selected],
+        "annotation.object_text": [s.object_text or "" for s in selected],
+        "annotation.object_present": np.asarray(
+            [[s.object_text is not None] for s in selected], dtype=np.bool_
+        ),
+    }

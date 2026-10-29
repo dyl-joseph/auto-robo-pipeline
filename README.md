@@ -2,7 +2,7 @@
 
 The goal is autonomous robot-episode labeling with minimal human correction. The next milestone is to compare the pipeline's unedited semantic predictions directly with independently labeled, held-out ground truth. Broader messy-data recovery comes after that labeling benchmark.
 
-The current implementation prepares recordings for review and exports accepted annotations to LeRobot. It checks video and robot streams, repairs sample order and exact duplicates, proposes coarse motion segments, and sends uncertain or incomplete episodes to Label Studio. An explicit approval controls which annotations enter an export. A learned semantic labeler and a held-out evaluation of its predictions are still missing.
+The current implementation prepares recordings for review and exports accepted annotations to LeRobot. It checks video and robot streams, repairs sample order and exact duplicates, proposes coarse motion segments, and sends uncertain or incomplete episodes to Label Studio. An explicit approval controls which annotations enter an export. The [Mac execution check](docs/evidence/mac-semantic-e2e.json) runs full pretrained Qwen labeling through native API review, LeRobot export, and two pretrained policy updates with exact checkpoint resume. Independent annotation accuracy and policy quality remain unmeasured.
 
 ![A real DROID episode in Label Studio](docs/evidence/droid-batch-review.png)
 
@@ -67,15 +67,15 @@ Report per-class precision, recall and temporal segment F1, boundary error, miss
 
 The [semantic contract and evaluator](docs/semantic-evaluation.md) accept text-labeled segments with source-frame evidence, a frozen split manifest, and separate prediction/reference files. They score normalized actions and exact object labels, retain failed episodes in the denominator, and check reference and split declarations. Generated tests cover the contract; real semantic accuracy still requires independent annotations and model predictions.
 
-The [robot-state baseline](docs/semantic-state-baseline.md) produces coarse text-labeled motion and gripper candidates in that format. It has run on the 119-frame DROID pilot, but its object/contact interpretation and accuracy remain unverified. The [local Qwen adapter](docs/qwen-semantic-adapter.md) adds bounded sampled-image inference and strict output validation. Its official tiny-model execution tests pass; full pretrained labeling still needs the pinned local weights and independent references.
+The [robot-state baseline](docs/semantic-state-baseline.md) produces coarse text-labeled motion and gripper candidates in that format. It has run on the 119-frame DROID pilot, but its object/contact interpretation and accuracy remain unverified. The [local Qwen adapter](docs/qwen-semantic-adapter.md) adds bounded sampled-image inference and strict output validation. Full pretrained MPS inference now passes on that pilot. The [semantic review path](docs/semantic-review.md) preserves unedited predictions while allowing native text and boundary corrections. Its real DROID check loads all 119 corrected rows through LeRobot; those automated corrections are not independent ground truth.
 
-## Future work: a small semantic-labeling prototype
+## Semantic prototype and remaining evaluation
 
-PI's [π₀.₅ research](https://www.pi.website/blog/pi05) uses semantic subtask instructions and high-level subtask prediction alongside multimodal co-training. [π₀.₇ §V-A](https://www.pi.website/download/pi07.pdf#page=4) also annotates temporal segments with detailed subtask text. That motivates making **text-labeled temporal segments** the core output of our planned prototype.
+PI's [π₀.₅ research](https://www.pi.website/blog/pi05) uses semantic subtask instructions and high-level subtask prediction alongside multimodal co-training. [π₀.₇ §V-A](https://www.pi.website/download/pi07.pdf#page=4) also annotates temporal segments with detailed subtask text. That motivates making **text-labeled temporal segments** the core output of the prototype.
 
 Keep the scope small: **DROID → automatic text-labeled segments → independent ground-truth comparison → review/export**. Start with a small video-language model that proposes subtask text and start/end boundaries, and compare it with a robot-state baseline on the same held-out episodes. Score uncorrected predictions against independent reference annotations before sending uncertain cases to review. Use the existing approval and export workflow.
 
-Object tracking would be added only if it measurably improves annotation quality or reduces review workload. World models, memory-heavy controllers and a full π₀.₇ reproduction are outside this prototype. These are proposed experiments; implementation still requires plan approval and suitable model/data access.
+Object tracking would be added only if it measurably improves annotation quality or reduces review workload. World models, memory-heavy controllers and a full π₀.₇ reproduction are outside this prototype. The small prototype is approved; these larger extensions remain outside the current work.
 
 The direct annotation benchmark remains primary. An original-versus-enriched policy ablation would be a separate later experiment, with matched data splits, training recipe and compute budget. It would test whether better annotations improve held-out robot-task performance; the annotation benchmark alone cannot establish that.
 
@@ -87,7 +87,7 @@ The existing [controlled benchmark](docs/messy-droid.md) is a limited starting p
 
 The [LeRobot adapter](docs/lerobot.md) writes local v3 datasets and checks them with the official loader and PyTorch DataLoader. The DROID test compares all 119 loaded state/action vectors with the decoded source. Its action schema is seven absolute joint positions and one gripper closure value.
 
-The [MLX adapter](docs/mlx.md) trains the π₀.₅ action expert while keeping the official LeRobot encoder frozen. On the Mac, all 14 model tests use MLX Metal with the official encoder and reference on MPS. CPU fallback is disabled. A [full pretrained inference run](docs/evidence/pi05-synthetic-metal.json) also passes from generated camera images, state and task text through the official preprocessing and postprocessing. Its 50-step, 32-dimension action chunk matches the full MPS reference within `6.11e-7`. This uses synthetic statistics and no real dataset. Memory use, sustained Metal performance and policy quality have not been measured.
+The [MLX adapter](docs/mlx.md) trains the π₀.₅ action expert while keeping the official LeRobot encoder frozen. On the Mac, all 14 model tests use MLX Metal with the official encoder and reference on MPS. CPU fallback is disabled. A [full pretrained inference run](docs/evidence/pi05-synthetic-metal.json) also passes from generated camera images, state and task text through the official preprocessing and postprocessing. Its 50-step, 32-dimension action chunk matches the full MPS reference within `6.11e-7`. The [semantic training check](docs/evidence/mac-semantic-e2e.json) additionally uses the real exported pilot, train-fitted statistics, and Qwen subtask text for two optimizer updates. Resume reproduces all 208 parameter tensors and sampled actions exactly. Memory use, sustained Metal performance and policy quality remain unmeasured.
 
 ## Verify a change
 
