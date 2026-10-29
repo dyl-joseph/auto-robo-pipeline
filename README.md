@@ -8,6 +8,14 @@ The current implementation prepares recordings for review and exports accepted a
 
 This screenshot comes from an automated integration test using DROID footage by Khazatsky et al. (2024), under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/). The displayed variant has missing numeric samples and an inferred 15 Hz clock. It is not a human-reviewed training example.
 
+## Test the prototype locally
+
+- **Measure automatic predictions first:** follow the [DROID task-reference benchmark](docs/droid-task-benchmark.md). It freezes a small cohort, hides task instructions during inference, and preserves original predictions for comparison. Do not correct predictions before scoring them.
+- **Exercise review through training-data export:** follow the [resumable semantic workflow](docs/semantic-workflow.md). It prepares native review tasks and exports accepted revisions through LeRobot after explicit approval. This is a separate workspace; the benchmark does not automatically publish labels or training exports.
+- **Check integration plumbing:** use the [connected acceptance check](docs/workflow-acceptance.md). Its automated corrections and approvals are test fixtures, not accuracy evidence.
+
+This is an end-to-end prototype with a human approval gate, not unattended production labeling. Calibrated automatic acceptance, representative semantic/boundary accuracy and measured human-review savings are still future validation work.
+
 ## Run the workflow
 
 Install Python 3.12, uv 0.12.23 and FFmpeg with FFprobe, then run:
@@ -19,7 +27,7 @@ uv run --locked python -m robo preflight
 
 For DROID semantic labeling, use the new [resumable workflow](docs/semantic-workflow.md). After configuring a local source and either the baseline or Qwen, one command prepares predictions and native review tasks. Run it again after saving and explicitly approving corrections to produce a validated LeRobot export. Failed inference remains visible and returns a failure status; evaluation waits for separate references. The [real pilot check](docs/evidence/semantic-pipeline.json) verifies the orchestration with baseline labels and automated API edits.
 
-The [connected acceptance check](docs/workflow-acceptance.md) exercises that path in one command with existing local Qwen assets, a disposable native review session and explicitly authorized test approval. Its local baseline run loads all 119 real pilot frames; the new command still needs its full pretrained Mac run. Test corrections remain separate from independent reference labels.
+The [connected acceptance check](docs/workflow-acceptance.md) exercises that path in one command with existing local Qwen assets, a disposable native review session and explicitly authorized test approval. Its local baseline run loads all 119 real pilot frames. The user's full pretrained Mac run at `64d4749` also passed with CPU fallback disabled, correction and explicit fixture approval, repeated resumes, and all 119 rows matching the source; see the execution summary in [PR22](https://github.com/dyl-joseph/auto-robo-pipeline/pull/22). Test corrections remain separate from independent reference labels.
 
 Follow the [real DROID demo](docs/demo.md) to download a pinned 9.54 MB shard, open a review queue, check an accepted export with the official LeRobot loader, and run the corruption benchmark. To use your own recordings, create local manifests using the [episode contract](docs/data-contract.md):
 
@@ -73,7 +81,7 @@ Report per-class precision, recall and temporal segment F1, boundary error, miss
 
 The [semantic contract and evaluator](docs/semantic-evaluation.md) accept text-labeled segments with source-frame evidence, a frozen split manifest, and separate prediction/reference files. They score normalized actions and exact object labels, retain failed episodes in the denominator, and check reference and split declarations. Generated tests cover the contract; real semantic accuracy still requires independent annotations and model predictions.
 
-The [DROID task-reference benchmark](docs/droid-task-benchmark.md) hides episode instructions from Qwen, freezes the cohort before inference, and compares unedited predictions with the original publisher task descriptions. It reports lexical diagnostics and optional independent task judgments, keeping failures and unjudged episodes visible. Episode descriptions do not supply temporal boundary truth, and no blind pretrained benchmark result is claimed yet.
+The [DROID task-reference benchmark](docs/droid-task-benchmark.md) hides episode instructions from Qwen, freezes the cohort before inference, and compares unedited predictions with the original publisher task descriptions. It reports lexical diagnostics and optional independent task judgments, keeping failures and unjudged episodes visible. Episode descriptions do not supply temporal boundary truth. The user reports a blind Mac run passing the output contract on one eligible episode after excluding debugged sessions; [PR23](https://github.com/dyl-joseph/auto-robo-pipeline/pull/23) records the scope. The raw execution artifacts are not included here, and semantic accuracy remains unmeasured.
 
 **Current limitation:** Qwen is prompted to summarize each window in one to three activity phases. This keeps replies within the output-token budget, but it can hide brief actions or combine distinct steps. Passing JSON validation and covering every frame show that an output meets the format contract; they do not establish label correctness or boundary accuracy. Those require comparison with suitable independent references.
 
