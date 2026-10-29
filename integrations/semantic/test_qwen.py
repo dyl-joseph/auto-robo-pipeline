@@ -113,8 +113,17 @@ def tiny_official_model():
     return model, processor
 
 
-def test_official_processor_and_small_model_execute_multiframe_generation():
+@pytest.mark.parametrize(
+    ("eos_token_id", "last_token_id", "finish_reason"),
+    [(2, 2, "eos"), ([2, 7], 7, "eos"), (2, 8, "length")],
+)
+def test_official_processor_and_small_model_execute_multiframe_generation(
+    eos_token_id, last_token_id, finish_reason
+):
     model, processor = tiny_official_model()
+    model.generation_config.eos_token_id = eos_token_id
+    model.generation_config.min_new_tokens = 2
+    model.generation_config.forced_eos_token_id = last_token_id
     visual_calls = []
     hook = model.model.visual.register_forward_pre_hook(
         lambda module, inputs: visual_calls.append(tuple(inputs[0].shape))
@@ -133,7 +142,8 @@ def test_official_processor_and_small_model_execute_multiframe_generation():
         "Generated task",
     )
     assert isinstance(reply, str)
-    assert execution["device"] == "cpu" and 1 <= execution["output_tokens"] <= 2
+    assert execution["device"] == "cpu" and execution["output_tokens"] == 2
+    assert execution["finish_reason"] == finish_reason
     assert execution["input_tokens"] > 2 and len(execution["prompt_sha256"]) == 64
     hook.remove()
     assert visual_calls == [(8, 1536)]  # Two images, four patches each, RGB × two × 16².
@@ -425,6 +435,40 @@ def test_runner_records_raw_outputs_and_failed_episodes(tmp_path, monkeypatch, i
     assert raw[0]["source_frames"][-1] == 19
     if invalid_reply:
         assert not p.episodes[0].segments and raw[0]["reply"] == "invalid fixture output"
+
+
+@pytest.mark.parametrize("reply_kind", ["truncated", "gap", "complete", "malformed_eos"])
+def test_runner_retains_token_limited_replies_without_repair(tmp_path, monkeypatch, reply_kind):
+    from robo.semantic import Predictions
+
+    store, _, entry, plan = generated_store(tmp_path)
+    if reply_kind == "complete":
+        reply = json.dumps([proposal()])
+    elif reply_kind == "gap":
+        reply = json.dumps([proposal(1, 20)])
+    else:
+        reply = '[{"start_frame":0,"end_frame_exclusive":20,"subtask_text":"truncated'
+    execution = {
+        "output_tokens": 768,
+        "finish_reason": "eos" if reply_kind == "malformed_eos" else "length",
+    }
+    monkeypatch.setattr(qwen, "generate", lambda *args: (reply, execution))
+    output = tmp_path / "predictions"
+    result = qwen.run(plan, store, output, None, None, {"fixture": True})
+    failed = reply_kind != "complete"
+    assert result["failed_predictions"] == int(failed)
+    prediction = Predictions.model_validate_json((output / "predictions.json").read_bytes())
+    row = prediction.episodes[0]
+    assert row.episode_id == entry.episode_id
+    if failed:
+        assert not row.segments and row.error
+        assert ("output-token budget exhausted" in row.error) == (reply_kind != "malformed_eos")
+        cause = "without gaps or overlap" if reply_kind == "gap" else "Unterminated string"
+        assert cause in row.error
+    else:
+        assert row.error is None and row.segments[-1].source_frames.end_exclusive == 20
+    raw = json.loads((output / f"{digest(entry.episode_id)[:24]}-0.json").read_text())
+    assert raw["reply"] == reply and raw["execution"] == execution
 
 
 def test_source_change_during_generation_fails_without_publishing_labels(tmp_path, monkeypatch):
