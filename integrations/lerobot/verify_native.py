@@ -35,9 +35,7 @@ def main():
         convert(args.fixture / "accepted", args.fixture / "source", args.output, schema, "train")
         == manifest
     )
-    reader = LeRobotDataset(
-        f"local/{manifest['version']}", root=args.output, video_backend="torchcodec"
-    )
+    reader = LeRobotDataset(f"local/{manifest['version']}", root=args.output)
     plan = plan_episode(record, schema)
     assert len(reader) == len(plan["grid"]) == 96
     for i in range(len(reader)):
@@ -57,6 +55,7 @@ def main():
         args.evidence,
         {
             "evidence_kind": "synthetic_native_browser_sdk_to_official_lerobot",
+            "video_backend": reader._video_backend,
             "versions": {
                 package: version(package) for package in ["lerobot", "torch", "torchcodec", "av"]
             },

@@ -56,9 +56,7 @@ def main():
         == manifest
     )
     assert manifest["adapter_version"] == 2
-    reader = LeRobotDataset(
-        f"local/{manifest['version']}", root=args.output, video_backend="torchcodec"
-    )
+    reader = LeRobotDataset(f"local/{manifest['version']}", root=args.output)
     assert len(reader) == len(raw["steps"]) == 119 and reader.num_episodes == 1
     for name in ("annotation.subtask_text", "annotation.object_text"):
         assert reader.meta.features[name]["dtype"] == "string"
@@ -109,6 +107,7 @@ def main():
         args.evidence,
         {
             "evidence_kind": "real_droid_automated_semantic_review_to_official_lerobot",
+            "video_backend": reader._video_backend,
             "frames_loaded_and_checked": len(reader),
             "episodes": 1,
             "segments": 9,

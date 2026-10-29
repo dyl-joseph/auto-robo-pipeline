@@ -5,10 +5,11 @@ description = "MLX action-expert training with the official LeRobot PI05 encoder
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "mlx[cpu]==0.32.4",
-    "lerobot[pi]==0.6.1",
+    "lerobot[pi,dataset]==0.6.1",
     "transformers==5.5.4",
     "torch==2.11.0",
     "torchvision==0.26.0",
+    "torchcodec==0.11.0",
     "numpy==2.2.6",
     "pydantic==2.14.1",
     "pytest==9.2.0",
@@ -29,3 +30,4 @@ explicit = true
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchcodec = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
