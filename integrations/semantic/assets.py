@@ -65,14 +65,19 @@ def load(directory, device):
         str(directory), local_files_only=True, trust_remote_code=False
     )
     dtype = torch.float32 if device == "cpu" else torch.float16
+    attention = "eager" if device == "mps" else "sdpa"
     model = Qwen3VLForConditionalGeneration.from_pretrained(
         str(directory),
         local_files_only=True,
         trust_remote_code=False,
         use_safetensors=True,
         dtype=dtype,
-        attn_implementation="sdpa",
+        attn_implementation=attention,
     )
     model = model.to(device).eval()
-    evidence.update(device=str(next(model.parameters()).device), dtype=str(dtype))
+    evidence.update(
+        device=str(next(model.parameters()).device),
+        dtype=str(dtype),
+        attention_implementation=attention,
+    )
     return model, processor, evidence

@@ -9,6 +9,8 @@ uv run --locked python -m robo.semantic_baseline \
 
 The [evaluation plan](semantic-evaluation.md) must describe episodes already imported into the source store. Its taxonomy needs `unknown`, `not_observable`, `motion`, `hold`, `grasp` and `release`. The command checks each source snapshot, media hash and frame clock against that plan. Use a fresh output path for a new run; repeating the same run checks and reuses the existing output.
 
+The default split is `test`. Use `--split development` for development predictions. For policy-training annotations, create the plan with a frozen `train` split and pass `--split train`. The run manifest marks those outputs as `training_annotations`; review and export preserve the train split. Do not change a development or held-out plan into training data.
+
 ## How it labels state
 
 The default streams are `state_joint_position` (seven radians) and `state_gripper_position` (one normalized closure value). They match the [DROID adapter](droid.md). Each video frame uses the latest state sample within the stream's declared tolerance, through the same causal alignment function used by LeRobot conversion. Missing or stale samples fail that episode and remain visible in `predictions.json`; values are not filled in.
@@ -24,6 +26,8 @@ An optional `--config config.json` can change the stream names, thresholds and u
 ## Compare and review
 
 The output contains `predictions.json`, per-episode state evidence and `run.json` with file hashes, configuration and failure counts. The prediction process has no reference-file argument and does not read stored review revisions. Its output can be scored with the [semantic evaluator](semantic-evaluation.md#run-the-comparison) once independent references exist. Failed episodes stay in the prediction population and count as misses.
+
+The CLI exits with status 2 if any episode fails, after preserving its failure record. Training annotations cannot be scored as held-out test predictions.
 
 This command creates prediction artifacts. It does not write native annotations or accept them into an export. Use the [semantic review step](semantic-review.md) to prepare native text and timeline corrections, then explicitly approve the saved revision.
 

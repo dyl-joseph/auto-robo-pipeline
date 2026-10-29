@@ -135,7 +135,6 @@ def test_official_loader_numeric_images_labels_and_episode_windows(converted):
     reader = LeRobotDataset(
         f"local/{manifest['version']}",
         root=output,
-        video_backend="torchcodec",
         delta_timestamps={"action": [0, 0.1, 0.2]},
     )
     assert len(reader) == 20 and reader.num_episodes == 2
@@ -190,7 +189,7 @@ def test_held_out_conversion_has_only_held_out_episode(converted):
     assert manifest["split"] == "test" and len(manifest["episodes"]) == 1
     source = store.episode(manifest["episodes"][0]["source_episode_id"])
     assert source["session"] == "independent-fixture-2"
-    reader = LeRobotDataset(f"local/{manifest['version']}", root=output, video_backend="torchcodec")
+    reader = LeRobotDataset(f"local/{manifest['version']}", root=output)
     assert len(reader) == 10 and reader.num_episodes == 1
     assert all(reader[i]["task"] == "generated task 2" for i in range(10))
 

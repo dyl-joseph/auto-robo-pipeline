@@ -1,5 +1,8 @@
 import json
+import subprocess
+import sys
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 
@@ -139,12 +142,132 @@ def test_failed_episode_remains_in_predictions(fixture, tmp_path):
     assert "media hash" in predictions["episodes"][0]["error"]
 
 
-def test_tuning_declarations_cannot_include_evaluated_episode(fixture, tmp_path):
+@pytest.mark.parametrize("split", ["train", "test"])
+def test_tuning_declarations_cannot_include_annotated_episode(fixture, tmp_path, split):
     store, _, spec, plan = setup(fixture)
+    body = plan.model_dump()
+    body["episodes"][0]["split"] = split
+    plan = EvaluationPlan.model_validate(body)
     with pytest.raises(ValueError, match="tuning episodes"):
         run(
             plan,
             store,
             tmp_path / "predictions",
+            split=split,
             config=BaselineConfig(tuning_episode_ids=[spec.episode_id]),
         )
+
+
+def test_training_annotation_cli_preserves_train_split(fixture, tmp_path):
+    store, _, spec, plan = setup(fixture)
+    body = plan.model_dump()
+    body["episodes"][0]["split"] = "train"
+    plan = EvaluationPlan.model_validate(body)
+    plan_path, output = tmp_path / "train-plan.json", tmp_path / "train-predictions"
+    atomic_json(plan_path, plan.model_dump())
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "robo.semantic_baseline",
+            str(plan_path),
+            str(store.root),
+            str(output),
+            "--split",
+            "train",
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    manifest = json.loads(result.stdout)
+    assert manifest["split"] == "train"
+    assert manifest["purpose"] == "training_annotations"
+    assert manifest["failed_predictions"] == 0
+    predictions = Predictions.model_validate_json((output / "predictions.json").read_bytes())
+    assert predictions.plan_sha256 == plan.plan_sha256
+    assert predictions.episodes[0].episode_id == spec.episode_id
+    assert predictions.episodes[0].segments[-1].source_frames.end_exclusive == 20
+
+
+def test_training_annotations_cannot_be_scored_as_a_test(fixture, tmp_path):
+    from robo.semantic import References
+    from robo.semantic_evaluation import validate_inputs
+
+    store, _, _, plan = setup(fixture)
+    body = plan.model_dump()
+    body["episodes"][0]["split"] = "train"
+    plan = EvaluationPlan.model_validate(body)
+    output = tmp_path / "train-predictions"
+    run(plan, store, output, split="train")
+    predictions = Predictions.model_validate_json((output / "predictions.json").read_bytes())
+    entry = plan.episodes[0]
+    reference_hash = digest("independent generated reference fixture")
+    references = References(
+        plan_sha256=plan.plan_sha256,
+        evidence_kind="synthetic_fixture",
+        episodes=[
+            {
+                "episode_id": entry.episode_id,
+                "segments": [
+                    {
+                        "episode_id": entry.episode_id,
+                        "start_s": 0,
+                        "end_s": 2,
+                        "source_frames": {"start": 0, "end_exclusive": 20, "evidence": [0, 19]},
+                        "subtask_text": "Generated reference fixture",
+                        "normalized_action": "unknown",
+                        "object_text": None,
+                        "uncertainty": None,
+                        "provenance": {
+                            "kind": "synthetic_fixture",
+                            "producer": "generated reference",
+                            "artifact_sha256": reference_hash,
+                        },
+                    }
+                ],
+                "audit": {
+                    "status": "synthetic_fixture",
+                    "method": "synthetic_fixture",
+                    "annotators": ["generated fixture"],
+                    "source_uri": "fixture://train-reference",
+                    "source_sha256": reference_hash,
+                    "license": "generated fixture",
+                    "license_url": "fixture://license",
+                    "prediction_exposure": False,
+                },
+            }
+        ],
+    )
+    with pytest.raises(ValueError, match="every episode in the chosen split"):
+        validate_inputs(plan, predictions, references, "test")
+    with pytest.raises(ValueError, match="evaluate only"):
+        validate_inputs(plan, predictions, references, "train")
+
+
+def test_failed_baseline_cli_returns_failure_and_keeps_artifacts(fixture, tmp_path):
+    store, episode, _, plan = setup(fixture)
+    plan_path, output = tmp_path / "plan.json", tmp_path / "failed-predictions"
+    atomic_json(plan_path, plan.model_dump())
+    (store.root / episode["media"]).write_bytes(b"changed source")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "robo.semantic_baseline",
+            str(plan_path),
+            str(store.root),
+            str(output),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 2, result.stderr
+    assert json.loads(result.stdout)["failed_predictions"] == 1
+    predictions = Predictions.model_validate_json((output / "predictions.json").read_bytes())
+    assert "media hash" in predictions.episodes[0].error
+    assert not predictions.episodes[0].segments
