@@ -19,6 +19,8 @@ uv run --locked python -m robo preflight
 
 For DROID semantic labeling, use the new [resumable workflow](docs/semantic-workflow.md). After configuring a local source and either the baseline or Qwen, one command prepares predictions and native review tasks. Run it again after saving and explicitly approving corrections to produce a validated LeRobot export. Failed inference remains visible and returns a failure status; evaluation waits for separate references. The [real pilot check](docs/evidence/semantic-pipeline.json) verifies the orchestration with baseline labels and automated API edits.
 
+The [connected acceptance check](docs/workflow-acceptance.md) exercises that path in one command with existing local Qwen assets, a disposable native review session and explicitly authorized test approval. Its local baseline run loads all 119 real pilot frames; the new command still needs its full pretrained Mac run. Test corrections remain separate from independent reference labels.
+
 Follow the [real DROID demo](docs/demo.md) to download a pinned 9.54 MB shard, open a review queue, check an accepted export with the official LeRobot loader, and run the corruption benchmark. To use your own recordings, create local manifests using the [episode contract](docs/data-contract.md):
 
 ```bash

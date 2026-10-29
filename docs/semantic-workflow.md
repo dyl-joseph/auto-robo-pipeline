@@ -103,6 +103,8 @@ Scores use the frozen uncorrected predictions, never the native corrections. Sup
 
 ## Verification and limits
 
+For a single acceptance command that includes provider execution, a disposable native session, fixture correction/approval and the official loader, use the [connected workflow check](workflow-acceptance.md). It defaults to local Qwen and reports model execution separately from the automated fixture decisions.
+
 The [workflow evidence](evidence/semantic-pipeline.json) records the real 119-frame DROID pilot through baseline prediction, actual Label Studio API review, explicit automated test approval and the official LeRobot loader/DataLoader. Every loaded state/action vector matches the decoded source, and text is checked against source-frame ranges. Repeated runs retain one task and unchanged prediction/export artifacts. The test also checks that Label Studio serves the task's video. DROID is attributed to Khazatsky et al. (2024), under CC-BY-4.0; its pilot clock is inferred at 15 Hz.
 
 Generated fixtures cover multiple episodes, full split catalogs, rejected camera/identity relabeling, duplicate intake records, partial/all-failed inference, interrupted publication, changed sources/predictions, stale native edits, ambiguous annotation selection and exit codes. They do not establish pretrained labeling quality. The loader uses LeRobot's available default video decoder and records its name. The user's separate [Mac evidence](evidence/mac-semantic-e2e.json) covers pretrained Qwen and policy execution; this cloud orchestration check uses the baseline and does not repeat that Mac run. Independent semantic accuracy, human time savings and this new wrapper's full pretrained Mac path remain unmeasured.
