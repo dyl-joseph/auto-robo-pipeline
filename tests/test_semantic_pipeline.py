@@ -348,6 +348,23 @@ def test_multiple_annotations_require_explicit_selection(workflow):
     assert exit_status(report) == 3
 
 
+def test_failed_intake_revalidation_blocks_even_previously_accepted_export(workflow, monkeypatch):
+    engine, runtime, sdk, _ = workflow
+    engine.run()
+    sdk.save_annotation(1)
+    accept(engine, engine.run()["items"][0])
+
+    def changed_source(*args):
+        raise StageFailure("Input shard changed")
+
+    monkeypatch.setattr(runtime, "intake", changed_source)
+    report = engine.run()
+    assert report["status"] == "blocked" and exit_status(report) == 2
+    assert report["errors"][0]["stage"] == "intake"
+    assert report["export"]["status"] == "blocked"
+    assert not (engine.root / "exports").exists()
+
+
 def test_missing_sdk_does_not_claim_tasks_were_published(workflow):
     engine, _, _, _ = workflow
     engine.sdk = None
@@ -367,6 +384,27 @@ def test_runtime_qwen_is_selected_explicitly_without_baseline_fallback(workflow,
     runtime.predict(config, Path("plan.json"), engine.store, Path("result"))
     assert len(seen) == 1 and seen[0][0] == "integrations/semantic"
     assert "integrations.semantic.qwen" in seen[0][1] and "mps" in seen[0][1]
+
+
+def test_aggregate_keeps_provider_tuning_declarations(workflow, monkeypatch):
+    engine, runtime, _, _ = workflow
+    predict = runtime.predict
+
+    def tuned(*args):
+        predict(*args)
+        output = args[-1]
+        path = output / "predictions.json"
+        predictions = json.loads(path.read_text())
+        predictions["tuning_episode_ids"] = [predictions["episodes"][0]["episode_id"]]
+        atomic_json(path, predictions)
+        manifest = json.loads((output / "run.json").read_text())
+        manifest["files"]["predictions.json"] = file_hash(path)
+        atomic_json(output / "run.json", manifest)
+
+    monkeypatch.setattr(runtime, "predict", tuned)
+    report = engine.run()
+    predictions = Predictions.model_validate_json((engine.root / "predictions.json").read_bytes())
+    assert predictions.tuning_episode_ids == [report["items"][0]["episode_id"]]
 
 
 @pytest.mark.parametrize("target", ["episodes", "conversion.json", "receipt.json"])

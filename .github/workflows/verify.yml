@@ -164,6 +164,7 @@ jobs:
           ROBO_SEMANTIC_EXPORT_FIXTURE: artifacts/semantic-native-fixture
           LS_CPU_RATE: "6"
       - run: uv run --locked --project integrations/lerobot python -m integrations.lerobot.verify_semantic data/local/droid-converted artifacts/semantic-native-fixture artifacts/semantic-lerobot
+      - run: uv run --locked python -m scripts.labelstudio_smoke --semantic-pipeline data/local/droid-sample --source data/local/droid-converted/source.json
       - run: uv run --locked python -m scripts.labelstudio_smoke --batch --source data/local/droid-converted/source.json
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
@@ -178,6 +179,7 @@ jobs:
             artifacts/droid-lerobot.json
             artifacts/semantic-native.json
             artifacts/semantic-lerobot.json
+            artifacts/semantic-pipeline.json
             artifacts/droid-browser.json
             artifacts/droid-intake-real/verification.json
             artifacts/batch-workflow.json

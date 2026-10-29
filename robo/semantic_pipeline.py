@@ -102,11 +102,16 @@ class Workflow:
         atomic_json(self.owned("report.json"), report)
 
     def error(self, report, stage, error, episode_id=None):
+        message = (
+            f"{type(error).__name__} (HTTP {error.status_code})"
+            if hasattr(error, "status_code")
+            else str(error)[:1000]
+        )
         report["errors"].append(
             {
                 "stage": stage,
                 "episode_id": episode_id,
-                "message": str(error)[:1000],
+                "message": message,
             }
         )
         report["status"] = "blocked"
@@ -149,6 +154,7 @@ class Workflow:
             self.runtime.intake(config, intake_path)
         except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as exc:
             self.error(report, "intake", exc)
+            return report
         checkpoint = self.owned("intake/intake.json")
         if not checkpoint.exists():
             if not report["errors"]:
@@ -158,6 +164,7 @@ class Workflow:
         report["intake"] = {"status": intake["status"], **intake["summary"]}
         if intake["status"] == "failed" and not report["errors"]:
             self.error(report, "intake", intake.get("error", "Intake failed"))
+            return report
         records = [r for shard in intake["shards"].values() for r in shard["records"]]
         episodes, schemas = {}, {}
         for record in records:
@@ -223,8 +230,12 @@ class Workflow:
             producer=identity["producer"],
             code_revision="semantic-workflow-v1",
             config_sha256=digest(frozen),
-            training_episode_ids=[],
-            tuning_episode_ids=[],
+            training_episode_ids=sorted(
+                {key for r in receipts.values() for key in r.get("training_episode_ids", [])}
+            ),
+            tuning_episode_ids=sorted(
+                {key for r in receipts.values() for key in r.get("tuning_episode_ids", [])}
+            ),
             reference_access="none",
             episodes=rows,
         )
@@ -370,6 +381,8 @@ class Workflow:
             receipt = {
                 "plan": job_plan.plan_sha256,
                 "provider": identity,
+                "training_episode_ids": predictions.training_episode_ids,
+                "tuning_episode_ids": predictions.tuning_episode_ids,
                 "files": {
                     **files,
                     "run.json": file_hash(manifest_path),
