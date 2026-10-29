@@ -39,9 +39,7 @@ def main():
         != review["segments"][0]["subtask_text"]
     )
     manifest = validate_training_export(training)
-    reader = LeRobotDataset(
-        f"local/{manifest['version']}", root=training, video_backend="torchcodec"
-    )
+    reader = LeRobotDataset(f"local/{manifest['version']}", root=training)
     assert len(reader) == len(raw["steps"]) == 119 and reader.num_episodes == 1
     for index, step in enumerate(raw["steps"]):
         row = reader[index]
@@ -91,6 +89,7 @@ def main():
             "source_frame_text_alignment": True,
             "numeric_values_match_rlds_float32": True,
             "official_lerobot_and_dataloader": True,
+            "video_backend": reader._video_backend,
             "source_timing": "inferred_nominal_15_hz",
             "pretrained_qwen_run": False,
             "semantic_accuracy_measured": False,
