@@ -121,7 +121,8 @@ def generate(model, processor, images, indices, spec, start, end, actions, confi
         f"Allowed normalized_action values: {json.dumps(actions)}. "
         "Use unknown or not_observable when evidence is insufficient; "
         "use null for an unknown object. "
-        "Return only a JSON array, no markdown. Each segment has exactly: start_frame (integer), "
+        "Return only a JSON array of objects, no markdown or positional arrays. "
+        "Each segment has exactly: start_frame (integer), "
         "end_frame_exclusive (integer), subtask_text, normalized_action, "
         "object_text (string or null), uncertainty (0 to 1; higher means less certain). "
         "Every segment must contain a supplied frame."
@@ -137,6 +138,27 @@ def generate(model, processor, images, indices, spec, start, end, actions, confi
                 {"type": "image", "image": image},
             ]
         )
+    example = {
+        "start_frame": start,
+        "end_frame_exclusive": end,
+        "subtask_text": "Describe the observed activity here",
+        "normalized_action": "unknown",
+        "object_text": None,
+        "uncertainty": 1.0,
+    }
+    content.append(
+        {
+            "type": "text",
+            "text": (
+                f"JSON format example for one segment: {json.dumps([example])}. "
+                "Replace the example text and action with what these images show. "
+                "Use additional objects only when the observed subtask changes. "
+                f"The first start_frame must be {start}; the final end_frame_exclusive "
+                f"must be {end}. All segment boundaries must stay within [{start},{end}]. "
+                "Return the complete array once and stop after its closing bracket."
+            ),
+        }
+    )
     messages = [{"role": "user", "content": content}]
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = processor(
@@ -203,8 +225,8 @@ def parse_reply(reply, spec, start, end, indices, artifact_sha, actions):
 
 
 def selected_episodes(plan, split, config):
-    if split not in {"development", "test"}:
-        raise ValueError("Choose development or test")
+    if split not in {"train", "development", "test"}:
+        raise ValueError("Choose train, development or test")
     selected = [e for e in plan.episodes if e.split == split]
     if not selected or len(selected) > config.max_episodes:
         raise ValueError("Choose a nonempty split within the explicit episode budget")
@@ -213,7 +235,7 @@ def selected_episodes(plan, split, config):
         key not in population or population[key].split in {split, "test"}
         for key in config.tuning_episode_ids
     ):
-        raise ValueError("Tuning episodes must be declared outside the evaluated split")
+        raise ValueError("Tuning episodes must be declared outside the annotated split")
     return selected
 
 
@@ -300,6 +322,8 @@ def run(plan, store, output, model, processor, assets, *, split="test", config=N
         atomic_json(temporary / "predictions.json", predictions.model_dump())
         manifest = {
             "run_id": run_id,
+            "split": split,
+            "purpose": "training_annotations" if split == "train" else "evaluation_predictions",
             "configuration": configuration,
             "files": {p.name: file_hash(p) for p in temporary.iterdir()},
             "episode_count": len(results),
@@ -324,11 +348,11 @@ def main():
     parser.add_argument("--store", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--split", choices=("development", "test"), default="test")
+    parser.add_argument("--split", choices=("train", "development", "test"), default="test")
     args = parser.parse_args()
     if args.preflight:
         print(json.dumps(preflight(args.model_dir), indent=2))
-        return
+        return 0
     if any(x is None for x in (args.device, args.plan, args.store, args.output)):
         parser.error("Inference requires --device, --plan, --store and --output")
     if not (args.store / "review.sqlite").is_file():
@@ -340,22 +364,19 @@ def main():
     if args.output.exists():
         raise ValueError("Choose an unused model-output directory")
     model, processor, assets = load(args.model_dir, args.device)
-    print(
-        json.dumps(
-            run(
-                plan,
-                Store(args.store),
-                args.output,
-                model,
-                processor,
-                assets,
-                split=args.split,
-                config=config,
-            ),
-            indent=2,
-        )
+    manifest = run(
+        plan,
+        Store(args.store),
+        args.output,
+        model,
+        processor,
+        assets,
+        split=args.split,
+        config=config,
     )
+    print(json.dumps(manifest, indent=2))
+    return 2 if manifest["failed_predictions"] else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
